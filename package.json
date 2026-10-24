@@ -45,7 +45,11 @@
       "icon": "resources/icon.icns"
     },
     "win": {
-      "icon": "resources/icon.ico"
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/icon.png",
+      "forceCodeSigning": false
     },
     "directories": {
       "output": "release"
