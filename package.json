@@ -44,6 +44,16 @@
       "darkModeSupport": true,
       "icon": "resources/icon.icns"
     },
+    "win": {
+      "target": ["nsis"],
+      "forceCodeSigning": false,
+      "icon": "resources/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
     "directories": {
       "output": "release"
     },

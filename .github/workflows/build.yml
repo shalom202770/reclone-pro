@@ -16,6 +16,9 @@ jobs:
           - os: macos-latest
             platform: mac
             args: --mac --universal
+          - os: windows-latest
+            platform: win
+            args: --win --x64
 
     runs-on: ${{ matrix.os }}
 
@@ -50,6 +53,15 @@ jobs:
             release/*-mac.zip
           if-no-files-found: error
 
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            release/*.exe
+          if-no-files-found: error
+
       - name: Upload to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
@@ -57,5 +69,6 @@ jobs:
           files: |
             release/*.dmg
             release/*-mac.zip
+            release/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
