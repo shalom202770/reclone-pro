@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+release/
+out/
+*.dmg
+*.exe
+*.AppImage
+*.snap
+*.blockmap
+
+# Environment
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local storage / caches
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# Keep resources tracked (icons, bin configs)
+!resources/
+!resources/**

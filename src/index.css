@@ -1,0 +1,479 @@
+@import '@fontsource-variable/rubik';
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Rubik Variable', 'Rubik', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+:root, .theme-warm {
+  --background: #14110f;
+  --foreground: #f5ede6;
+  --surface: #1e1916;
+  --surface-muted: #181411;
+  --surface-card: #221c18;
+  --surface-border: #2e2621;
+  --surface-hover: #29221d;
+  --surface-active: #382e27;
+  --border: #2e2621;
+  --input: #2e2621;
+  --ring: #d97706;
+  --mac-accent: #d97706;
+  --mac-accent-hover: #b45309;
+  --folder-icon-color: #f59e0b;
+  --folder-icon-fill: rgba(245, 158, 11, 0.2);
+  --folder-border: #fcd34d;
+  --folder-border-hover: #fef08a;
+  --folder-shadow: 0 0 10px rgba(252, 211, 77, 0.35);
+  --icon-container-border: rgba(245, 158, 11, 0.35);
+  --icon-container-border-hover: rgba(245, 158, 11, 0.7);
+  --selection-border: #d97706;
+  --selection-border-glow: rgba(217, 119, 6, 0.3);
+  --selection-bg: rgba(217, 119, 6, 0.15);
+}
+
+.theme-light {
+  --background: #f0f0f4;
+  --foreground: #020617;
+  --surface: #f5f5f7;
+  --surface-muted: #e8e8ed;
+  --surface-card: #f5f5f7;
+  --surface-border: #334155;
+  --surface-hover: #e3e3e8;
+  --surface-active: #d8d8de;
+  --border: #334155;
+  --input: #475569;
+  --ring: #0f172a;
+  --mac-accent: #0f172a;
+  --mac-accent-hover: #1e293b;
+  --folder-icon-color: #d97706;
+  --folder-icon-fill: rgba(217, 119, 6, 0.2);
+  --folder-border: #0f172a;
+  --folder-border-hover: #000000;
+  --folder-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  --icon-container-border: #1e293b;
+  --icon-container-border-hover: #0f172a;
+  --selection-border: #0f172a;
+  --selection-border-glow: rgba(15, 23, 42, 0.3);
+  --selection-bg: rgba(15, 23, 42, 0.12);
+  color-scheme: light;
+}
+
+.theme-dark {
+  --background: #09090b;
+  --foreground: #fafaf9;
+  --surface: #121214;
+  --surface-muted: #0d0d0f;
+  --surface-card: #17171a;
+  --surface-border: #27272a;
+  --surface-hover: #1f1f23;
+  --surface-active: #27272a;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d97706;
+  --mac-accent: #d97706;
+  --mac-accent-hover: #b45309;
+  --folder-icon-color: #f59e0b;
+  --folder-icon-fill: rgba(245, 158, 11, 0.2);
+  --folder-border: #fde047;
+  --folder-border-hover: #fef9c3;
+  --folder-shadow: 0 0 12px rgba(253, 224, 71, 0.4);
+  --icon-container-border: #3f3f46;
+  --icon-container-border-hover: #71717a;
+  --selection-border: #f59e0b;
+  --selection-border-glow: rgba(245, 158, 11, 0.4);
+  --selection-bg: rgba(245, 158, 11, 0.18);
+  color-scheme: dark;
+}
+
+.theme-macos, .theme-dark-mac {
+  --background: #18191d;
+  --foreground: #f2f3f5;
+  --surface: #202227;
+  --surface-muted: #1a1b20;
+  --surface-card: #262830;
+  --surface-border: #2f323c;
+  --surface-hover: #2b2e38;
+  --surface-active: #343744;
+  --border: #2f323c;
+  --input: #2f323c;
+  --ring: #0a84ff;
+  --mac-accent: #0a84ff;
+  --mac-accent-hover: #007aff;
+  --folder-icon-color: #0a84ff;
+  --folder-icon-fill: rgba(10, 132, 255, 0.25);
+  --folder-border: #0a84ff;
+  --folder-border-hover: #5ac8fa;
+  --folder-shadow: 0 0 12px rgba(10, 132, 255, 0.35);
+  --icon-container-border: #2f323c;
+  --icon-container-border-hover: #0a84ff;
+  --selection-border: #0a84ff;
+  --selection-border-glow: rgba(10, 132, 255, 0.35);
+  --selection-bg: rgba(10, 132, 255, 0.18);
+  color-scheme: dark;
+}
+
+.theme-warm-mac {
+  --background: #14110f;
+  --foreground: #f5ede6;
+  --surface: #1e1916;
+  --surface-muted: #181411;
+  --surface-card: #221c18;
+  --surface-border: #2e2621;
+  --surface-hover: #29221d;
+  --surface-active: #382e27;
+  --border: #2e2621;
+  --input: #2e2621;
+  --ring: #0a84ff;
+  --mac-accent: #0a84ff;
+  --mac-accent-hover: #007aff;
+  --folder-icon-color: #0a84ff;
+  --folder-icon-fill: rgba(10, 132, 255, 0.25);
+  --folder-border: #0a84ff;
+  --folder-border-hover: #5ac8fa;
+  --folder-shadow: 0 0 10px rgba(10, 132, 255, 0.35);
+  --icon-container-border: rgba(10, 132, 255, 0.35);
+  --icon-container-border-hover: rgba(10, 132, 255, 0.7);
+  --selection-border: #0a84ff;
+  --selection-border-glow: rgba(10, 132, 255, 0.3);
+  --selection-bg: rgba(10, 132, 255, 0.15);
+  color-scheme: dark;
+}
+
+.theme-light-mac {
+  --background: #f0f0f4;
+  --foreground: #020617;
+  --surface: #f5f5f7;
+  --surface-muted: #e8e8ed;
+  --surface-card: #f5f5f7;
+  --surface-border: #334155;
+  --surface-hover: #e3e3e8;
+  --surface-active: #d8d8de;
+  --border: #334155;
+  --input: #475569;
+  --ring: #007aff;
+  --mac-accent: #007aff;
+  --mac-accent-hover: #0056b3;
+  --folder-icon-color: #007aff;
+  --folder-icon-fill: rgba(0, 122, 255, 0.22);
+  --folder-border: #007aff;
+  --folder-border-hover: #0056b3;
+  --folder-shadow: 0 1px 4px rgba(0, 122, 255, 0.25);
+  --icon-container-border: #94a3b8;
+  --icon-container-border-hover: #007aff;
+  --selection-border: #007aff;
+  --selection-border-glow: rgba(0, 122, 255, 0.35);
+  --selection-bg: rgba(0, 122, 255, 0.12);
+  color-scheme: light;
+}
+
+/* SET 3: Hybrid macOS Folder Set (Standard UI frames, borders & backgrounds, but classic macOS blue folders) */
+.theme-warm-blue-folders {
+  --background: #14110f;
+  --foreground: #f5ede6;
+  --surface: #1e1916;
+  --surface-muted: #181411;
+  --surface-card: #221c18;
+  --surface-border: #2e2621;
+  --surface-hover: #29221d;
+  --surface-active: #382e27;
+  --border: #2e2621;
+  --input: #2e2621;
+  --ring: #d97706;
+  --mac-accent: #d97706;
+  --mac-accent-hover: #b45309;
+  --folder-icon-color: #0a84ff;
+  --folder-icon-fill: rgba(10, 132, 255, 0.25);
+  --folder-border: #fcd34d;
+  --folder-border-hover: #fef08a;
+  --folder-shadow: 0 0 10px rgba(10, 132, 255, 0.35);
+  --icon-container-border: rgba(245, 158, 11, 0.35);
+  --icon-container-border-hover: rgba(245, 158, 11, 0.7);
+  --selection-border: #d97706;
+  --selection-border-glow: rgba(217, 119, 6, 0.3);
+  --selection-bg: rgba(217, 119, 6, 0.15);
+}
+
+.theme-dark-blue-folders {
+  --background: #09090b;
+  --foreground: #fafaf9;
+  --surface: #121214;
+  --surface-muted: #0d0d0f;
+  --surface-card: #17171a;
+  --surface-border: #27272a;
+  --surface-hover: #1f1f23;
+  --surface-active: #27272a;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d97706;
+  --mac-accent: #d97706;
+  --mac-accent-hover: #b45309;
+  --folder-icon-color: #0a84ff;
+  --folder-icon-fill: rgba(10, 132, 255, 0.25);
+  --folder-border: #fde047;
+  --folder-border-hover: #fef9c3;
+  --folder-shadow: 0 0 12px rgba(10, 132, 255, 0.35);
+  --icon-container-border: #3f3f46;
+  --icon-container-border-hover: #71717a;
+  --selection-border: #f59e0b;
+  --selection-border-glow: rgba(245, 158, 11, 0.4);
+  --selection-bg: rgba(245, 158, 11, 0.18);
+  color-scheme: dark;
+}
+
+.theme-light-blue-folders {
+  --background: #f0f0f4;
+  --foreground: #020617;
+  --surface: #f5f5f7;
+  --surface-muted: #e8e8ed;
+  --surface-card: #f5f5f7;
+  --surface-border: #334155;
+  --surface-hover: #e3e3e8;
+  --surface-active: #d8d8de;
+  --border: #334155;
+  --input: #475569;
+  --ring: #0f172a;
+  --mac-accent: #0f172a;
+  --mac-accent-hover: #1e293b;
+  --folder-icon-color: #007aff;
+  --folder-icon-fill: rgba(0, 122, 255, 0.22);
+  --folder-border: #0f172a;
+  --folder-border-hover: #000000;
+  --folder-shadow: 0 1px 4px rgba(0, 122, 255, 0.25);
+  --icon-container-border: #1e293b;
+  --icon-container-border-hover: #0f172a;
+  --selection-border: #0f172a;
+  --selection-border-glow: rgba(15, 23, 42, 0.3);
+  --selection-bg: rgba(15, 23, 42, 0.12);
+  color-scheme: light;
+}
+
+/* Hebrew typography and smooth rendering */
+* {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Hebrew", "SF Pro Text", "SF Pro Display", "Heebo", "Rubik", "Assistant", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  direction: rtl;
+  text-align: right;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Light Mode Contrast, Border Weight & Typography Enhancements */
+.theme-light body,
+.theme-light-mac body,
+.theme-light-blue-folders body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* Force soft off-white background across all components, containers & modals */
+.theme-light .bg-white,
+.theme-light-mac .bg-white,
+.theme-light-blue-folders .bg-white,
+.theme-light .bg-surface,
+.theme-light-mac .bg-surface,
+.theme-light-blue-folders .bg-surface,
+.theme-light .bg-surface-card,
+.theme-light-mac .bg-surface-card,
+.theme-light-blue-folders .bg-surface-card {
+  background-color: #f5f5f7 !important;
+}
+
+.theme-light .bg-background,
+.theme-light-mac .bg-background,
+.theme-light-blue-folders .bg-background {
+  background-color: #f0f0f4 !important;
+}
+
+.theme-light .bg-surface-muted,
+.theme-light-mac .bg-surface-muted,
+.theme-light-blue-folders .bg-surface-muted {
+  background-color: #e8e8ed !important;
+}
+
+/* Thicker, more prominent container strokes in Light Mode */
+.theme-light [data-thumb-path],
+.theme-light-mac [data-thumb-path],
+.theme-light-blue-folders [data-thumb-path] {
+  border-width: 2px !important;
+}
+
+.theme-light .border-b,
+.theme-light-mac .border-b,
+.theme-light-blue-folders .border-b,
+.theme-light .border-t,
+.theme-light-mac .border-t,
+.theme-light-blue-folders .border-t,
+.theme-light .border-r,
+.theme-light-mac .border-r,
+.theme-light-blue-folders .border-r,
+.theme-light .border-l,
+.theme-light-mac .border-l,
+.theme-light-blue-folders .border-l {
+  border-color: rgba(51, 65, 85, 0.45);
+}
+
+.theme-light .font-medium,
+.theme-light-mac .font-medium,
+.theme-light-blue-folders .font-medium {
+  font-weight: 600 !important;
+}
+
+.theme-light .font-semibold,
+.theme-light-mac .font-semibold,
+.theme-light-blue-folders .font-semibold {
+  font-weight: 700 !important;
+}
+
+.theme-light .text-foreground,
+.theme-light-mac .text-foreground,
+.theme-light-blue-folders .text-foreground {
+  color: #020617 !important;
+}
+
+.theme-light .text-xs,
+.theme-light-mac .text-xs,
+.theme-light-blue-folders .text-xs {
+  font-size: 0.8125rem !important; /* 13px */
+  line-height: 1.25rem !important;
+}
+
+.theme-light .text-\[11px\],
+.theme-light-mac .text-\[11px\],
+.theme-light-blue-folders .text-\[11px\] {
+  font-size: 0.75rem !important; /* 12px */
+  font-weight: 500 !important;
+  color: #334155 !important;
+}
+
+.theme-light .text-\[10px\],
+.theme-light-mac .text-\[10px\],
+.theme-light-blue-folders .text-\[10px\] {
+  font-size: 0.6875rem !important; /* 11px */
+  font-weight: 500 !important;
+  color: #475569 !important;
+}
+
+.theme-light .text-gray-200,
+.theme-light-mac .text-gray-200,
+.theme-light-blue-folders .text-gray-200,
+.theme-light .text-gray-300,
+.theme-light-mac .text-gray-300,
+.theme-light-blue-folders .text-gray-300 {
+  color: #0f172a !important;
+  font-weight: 500 !important;
+}
+
+.theme-light .text-gray-400,
+.theme-light-mac .text-gray-400,
+.theme-light-blue-folders .text-gray-400 {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+
+.theme-light .text-gray-500,
+.theme-light-mac .text-gray-500,
+.theme-light-blue-folders .text-gray-500 {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+.theme-light .text-gray-600,
+.theme-light-mac .text-gray-600,
+.theme-light-blue-folders .text-gray-600 {
+  color: #334155 !important;
+}
+
+.theme-light .hover\:text-white:hover,
+.theme-light-mac .hover\:text-white:hover,
+.theme-light-blue-folders .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+/* macOS Window Drag Regions */
+.mac-drag-region {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.mac-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(217, 119, 6, 0.2);
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 119, 6, 0.45);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Glass panels adaptive to theme */
+.glass-panel {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-border);
+}
+
+.glass-dropdown {
+  background: var(--surface-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Active & Selection highlights */
+::selection {
+  background: rgba(217, 119, 6, 0.35);
+  color: #ffffff;
+}
+
+/* Focus styles */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.45);
+  border-color: #d97706;
+}
