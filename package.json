@@ -54,6 +54,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
     },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility",
+      "icon": "resources/icon.png"
+    },
     "directories": {
       "output": "release"
     },
