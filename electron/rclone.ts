@@ -453,6 +453,15 @@ export class RcloneManager {
         if (!showHidden) {
           items = items.filter((i) => !i.Name.startsWith('.'));
         }
+        // Normalize item.Path to be full relative path from remote root so subfolders/files retain full path
+        const cleanDir = dirPath ? dirPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+        items = items.map((i) => {
+          const rel = (i.Path || i.Name || '').replace(/\\/g, '/').replace(/^\/+/, '');
+          return {
+            ...i,
+            Path: cleanDir ? `${cleanDir}/${rel}` : rel,
+          };
+        });
         return items;
       } catch (err: any) {
         this.log('error', `שגיאה בטעינת קבצים מ-${remote}: ${err?.message || err}`);
@@ -701,11 +710,38 @@ export class RcloneManager {
   ) {
     this.log('command', `התחלת העברה: ${task.name} מ-[${task.srcRemote}:${task.srcPath}] ל-[${task.dstRemote}:${task.dstPath}]`);
 
-    const isSrcLocal = task.srcRemote === 'Local Mac' || task.srcRemote === 'local';
-    const isDstLocal = task.dstRemote === 'Local Mac' || task.dstRemote === 'local';
+    const isLocalRemote = (rem?: string) =>
+      !rem ||
+      rem === 'Local Mac' ||
+      rem === 'Local PC' ||
+      rem === 'local' ||
+      rem === '' ||
+      rem.startsWith('/') ||
+      /^[a-zA-Z]:[\\/]/.test(rem);
 
-    const src = isSrcLocal ? task.srcPath : `${task.srcRemote}:${task.srcPath}`;
-    const dst = isDstLocal ? task.dstPath : `${task.dstRemote}:${task.dstPath}`;
+    const isSrcLocal = isLocalRemote(task.srcRemote);
+    const isDstLocal = isLocalRemote(task.dstRemote);
+
+    // Normalize local paths to absolute (handles empty pane.path → relative dstPath, Windows paths, etc.)
+    const normalizedSrcPath = isSrcLocal && !path.isAbsolute(task.srcPath)
+      ? path.resolve(os.homedir(), task.srcPath)
+      : task.srcPath;
+    const normalizedDstPath = isDstLocal && !path.isAbsolute(task.dstPath)
+      ? path.resolve(os.homedir(), task.dstPath)
+      : task.dstPath;
+
+    // Clean cloud paths (POSIX forward slashes without leading slashes)
+    const cleanSrcCloud = (task.srcPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    const cleanDstCloud = (task.dstPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+
+    // Ensure local destination directory exists before starting transfer
+    if (isDstLocal) {
+      const dstDir = (task.isDir === false) ? path.dirname(normalizedDstPath) : normalizedDstPath;
+      try { fs.mkdirSync(dstDir, { recursive: true }); } catch {}
+    }
+
+    const src = isSrcLocal ? normalizedSrcPath : `${task.srcRemote}:${cleanSrcCloud}`;
+    const dst = isDstLocal ? normalizedDstPath : `${task.dstRemote}:${cleanDstCloud}`;
 
     if (!this.isDetected) {
       this.log('error', 'לא ניתן לבצע העברה ללא מנוע Rclone פעיל במערכת.');
@@ -722,7 +758,7 @@ export class RcloneManager {
     const isSingleFile = task.isDir === false || (task.isDir === undefined && (() => {
       if (isSrcLocal) {
         try {
-          return !fs.statSync(task.srcPath).isDirectory();
+          return !fs.statSync(normalizedSrcPath).isDirectory();
         } catch {
           return false;
         }

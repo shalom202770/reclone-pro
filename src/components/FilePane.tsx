@@ -125,7 +125,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
   };
 
   const handleCompress = async (item: RcloneItem) => {
-    if (!isLocalRemote || !window.electronAPI?.archiveCompress) return;
+    if (!window.electronAPI?.archiveCompress) return;
     const outPath = item.Path.replace(/\/?$/, '') + '.zip';
     const res = await window.electronAPI.archiveCompress(item.Path, outPath, remote);
     if (res?.success && onRefresh) {
@@ -134,7 +134,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
   };
 
   const handleExtract = async (item: RcloneItem) => {
-    if (!isLocalRemote || !window.electronAPI?.archiveExtract) return;
+    if (!window.electronAPI?.archiveExtract) return;
     const outDir = item.Path.replace(/\.[^.]+$/, '');
     const res = await window.electronAPI.archiveExtract(item.Path, outDir, remote);
     if (res?.success && onRefresh) {
@@ -734,19 +734,17 @@ export const FilePane: React.FC<FilePaneProps> = ({
 
             <div className="h-px bg-white/10 mx-2 my-1" />
 
-            {/* Compress */}
-            {isLocalRemote && (
-              <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
-                onClick={() => { handleCompress(item); setContextMenu(null); }}
-              >
-                <span>📦</span>
-                <span>{item.IsDir ? t('filePane.compressFolderToZip', 'דחוס תיקייה ל-ZIP') : t('filePane.compressToZip', 'דחוס ל-ZIP')}</span>
-              </button>
-            )}
+            {/* Compress (local + cloud) */}
+            <button
+              className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+              onClick={() => { handleCompress(item); setContextMenu(null); }}
+            >
+              <span>📦</span>
+              <span>{item.IsDir ? t('filePane.compressFolderToZip', 'דחוס תיקייה ל-ZIP') : t('filePane.compressToZip', 'דחוס ל-ZIP')}</span>
+            </button>
 
-            {/* Extract */}
-            {isLocalRemote && isArchive && (
+            {/* Extract (local + cloud) */}
+            {isArchive && (
               <button
                 className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => { handleExtract(item); setContextMenu(null); }}

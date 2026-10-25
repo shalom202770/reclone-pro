@@ -14,7 +14,11 @@ import {
   ExternalLink,
   Languages,
   Type,
-  Globe
+  Globe,
+  RefreshCw,
+  Sparkles,
+  CheckCircle2,
+  ArrowDownCircle
 } from 'lucide-react';
 import type { AppSettings } from '../types';
 import { useTranslation, AVAILABLE_FONTS } from '../i18n/context';
@@ -48,6 +52,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const [rclonePath, setRclonePath] = useState(settings.rclonePath || 'rclone');
   const [transfers, setTransfers] = useState(settings.transfers || 4);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateResult, setUpdateResult] = useState<{
+    checked: boolean;
+    isNewer: boolean;
+    latestVersion?: string;
+    downloadUrl?: string;
+    releaseNotes?: string;
+    error?: string;
+  } | null>(null);
+
+  const handleCheckForUpdates = async () => {
+    if (!window.electronAPI?.checkForUpdates) return;
+    setCheckingUpdate(true);
+    setUpdateResult(null);
+    try {
+      const res = await window.electronAPI.checkForUpdates();
+      setUpdateResult({
+        checked: true,
+        isNewer: res.isNewer,
+        latestVersion: res.latestVersion,
+        downloadUrl: res.downloadUrl,
+        releaseNotes: res.releaseNotes,
+        error: res.error,
+      });
+    } catch (err: any) {
+      setUpdateResult({
+        checked: true,
+        isNewer: false,
+        error: err?.message || 'שגיאה בבדיקת עדכונים',
+      });
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
   const [checkers, setCheckers] = useState(settings.checkers || 8);
   const [retries, setRetries] = useState(settings.retries || 3);
   const [bwlimitDownload, setBwlimitDownload] = useState(settings.bwlimitDownload || 'Unlimited');
@@ -698,8 +736,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-mac-accent/10 text-mac-accent border border-mac-accent/20">
-                v1.0.1 Pro
+                v1.0.2 Pro
               </span>
+            </div>
+
+            {/* Check for Updates Panel */}
+            <div className="p-3 rounded-xl bg-surface/80 border border-surface-border/70 flex flex-col gap-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-foreground">{t('settings.updatesTitle', 'עדכוני גרסה (Software Updates)')}</h4>
+                    <p className="text-[10px] text-gray-400">{t('settings.updatesDesc', 'בדוק אם קיימת גרסה חדשה ב-GitHub')}</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCheckForUpdates}
+                  disabled={checkingUpdate}
+                  className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent text-white hover:bg-mac-accentHover transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
+                  <span>{checkingUpdate ? t('settings.checking', 'בודק...') : t('settings.checkNow', 'בדוק עדכונים')}</span>
+                </button>
+              </div>
+
+              {updateResult && updateResult.checked && (
+                <div className="mt-1">
+                  {updateResult.isNewer ? (
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-blue-500/15 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-1.5 space-x-reverse text-emerald-400 font-bold text-xs">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{t('settings.newVersionAvailable', 'גרסה חדשה זמינה!')} v{updateResult.latestVersion}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-300">
+                          {t('settings.currentVersionIs', 'הגרסה הנוכחית שלך:')} v1.0.2 Pro
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenExternal(updateResult.downloadUrl || 'https://github.com/shalom202770/Reclone-Pro/releases/latest')}
+                        className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-colors cursor-pointer"
+                      >
+                        <ArrowDownCircle className="w-3.5 h-3.5" />
+                        <span>{t('settings.downloadUpdate', 'הורד עדכון עכשיו')}</span>
+                      </button>
+                    </div>
+                  ) : updateResult.error ? (
+                    <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-400 flex items-center gap-1.5">
+                      <span>⚠️</span>
+                      <span>{t('settings.updateCheckError', 'שגיאה בבדיקת עדכונים:')} {updateResult.error}</span>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 space-x-reverse">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{t('settings.upToDate', 'אתה משתמש בגרסה העדכנית ביותר! (v1.0.2 Pro)')}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-mono">v1.0.2 Pro</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="p-3 rounded-xl bg-surface/80 border border-surface-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

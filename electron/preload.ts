@@ -59,6 +59,9 @@ const api = {
   installForWindows: (): Promise<{ success: boolean; message: string; path?: string }> => {
     return ipcRenderer.invoke('rclone:install-windows');
   },
+  checkForUpdates: (): Promise<{ currentVersion: string; latestVersion: string; isNewer: boolean; downloadUrl?: string; releaseNotes?: string; error?: string }> => {
+    return ipcRenderer.invoke('app:check-for-updates');
+  },
 
   // Transfers
   startTransfer: (task: TransferTask, settings: any): Promise<void> => {

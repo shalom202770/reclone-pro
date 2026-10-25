@@ -45,6 +45,27 @@ const INITIAL_SETTINGS: AppSettings = {
   defaultLocalPath: '',
 };
 
+const getSavedSettings = (): AppSettings => {
+  try {
+    const raw = localStorage.getItem('reclone_pro_settings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...INITIAL_SETTINGS, ...parsed };
+    }
+  } catch {}
+  return INITIAL_SETTINGS;
+};
+
+const getSavedViewMode = (paneId: 'left' | 'right'): 'list' | 'grid' => {
+  try {
+    const specific = localStorage.getItem(`reclone_pro_view_mode_${paneId}`);
+    if (specific === 'list' || specific === 'grid') return specific;
+    const globalMode = localStorage.getItem('reclone_pro_view_mode');
+    if (globalMode === 'list' || globalMode === 'grid') return globalMode;
+  } catch {}
+  return 'list';
+};
+
 const INITIAL_PANE = (id: 'left' | 'right', defaultRemote: string): PaneState => ({
   id,
   remote: defaultRemote,
@@ -54,7 +75,7 @@ const INITIAL_PANE = (id: 'left' | 'right', defaultRemote: string): PaneState =>
   searchQuery: '',
   sortField: 'Name',
   sortOrder: 'asc',
-  viewMode: 'list',
+  viewMode: getSavedViewMode(id),
   loading: false,
   error: null,
   history: [''],
@@ -65,7 +86,10 @@ const INITIAL_PANE = (id: 'left' | 'right', defaultRemote: string): PaneState =>
 export const App: React.FC = () => {
   const { t, isRtl, dir } = useTranslation();
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('hasSeenOnboarding'));
-  const [dualPane, setDualPane] = useState(true);
+  const [dualPane, setDualPane] = useState(() => {
+    const saved = localStorage.getItem('reclone_pro_dual_pane');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [remotes, setRemotes] = useState<RemoteInfo[]>([]);
   const [leftPane, setLeftPane] = useState<PaneState>(INITIAL_PANE('left', 'Local Mac'));
   const [rightPane, setRightPane] = useState<PaneState>(INITIAL_PANE('right', 'Local Mac'));
@@ -76,8 +100,29 @@ export const App: React.FC = () => {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const [compareModalOpen, setCompareModalOpen] = useState(false);
-  const [showHiddenFiles, setShowHiddenFiles] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [showHiddenFiles, setShowHiddenFiles] = useState(() => {
+    return localStorage.getItem('reclone_pro_show_hidden') === 'true';
+  });
+  const [settings, setSettings] = useState<AppSettings>(getSavedSettings);
+
+  // Sync settings and UI preferences to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('reclone_pro_settings', JSON.stringify(settings));
+    } catch {}
+  }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('reclone_pro_dual_pane', String(dualPane));
+    } catch {}
+  }, [dualPane]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('reclone_pro_show_hidden', String(showHiddenFiles));
+    } catch {}
+  }, [showHiddenFiles]);
 
   const [newFolderModal, setNewFolderModal] = useState<{
     isOpen: boolean;
@@ -660,7 +705,13 @@ export const App: React.FC = () => {
             onGoForward={handleGoForwardLeft}
             onGoUp={handleGoUpLeft}
             onGoHome={() => handleNavigateLeft('')}
-            onToggleViewMode={(m) => setLeftPane((p) => ({ ...p, viewMode: m }))}
+            onToggleViewMode={(m) => {
+              setLeftPane((p) => ({ ...p, viewMode: m }));
+              try {
+                localStorage.setItem('reclone_pro_view_mode_left', m);
+                localStorage.setItem('reclone_pro_view_mode', m);
+              } catch {}
+            }}
             onToggleHiddenFiles={() => setShowHiddenFiles(!showHiddenFiles)}
             onSearchChange={(q) => setLeftPane((p) => ({ ...p, searchQuery: q }))}
             onRefresh={() => loadPaneItems('left')}
@@ -755,7 +806,13 @@ export const App: React.FC = () => {
               onGoForward={handleGoForwardRight}
               onGoUp={handleGoUpRight}
               onGoHome={() => handleNavigateRight('')}
-              onToggleViewMode={(m) => setRightPane((p) => ({ ...p, viewMode: m }))}
+              onToggleViewMode={(m) => {
+                setRightPane((p) => ({ ...p, viewMode: m }));
+                try {
+                  localStorage.setItem('reclone_pro_view_mode_right', m);
+                  localStorage.setItem('reclone_pro_view_mode', m);
+                } catch {}
+              }}
               onToggleHiddenFiles={() => setShowHiddenFiles(!showHiddenFiles)}
               onSearchChange={(q) => setRightPane((p) => ({ ...p, searchQuery: q }))}
               onRefresh={() => loadPaneItems('right')}

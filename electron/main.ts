@@ -363,53 +363,135 @@ ipcMain.handle('image:convert', async (_event, { inputPath, targetFormat, remote
   }
 });
 
-// --- ARCHIVE COMPRESSION (zip) ---
+// --- ARCHIVE COMPRESSION (zip) - supports local + remote cloud storages ---
 ipcMain.handle('archive:compress', async (_event, { sourcePath, outputPath, remote: rem }: { sourcePath: string; outputPath: string; remote?: string }) => {
-  const srcAbs = resolveLocalPath(sourcePath, rem);
-  const outAbs = resolveLocalPath(outputPath, rem);
+  const isLocal = !rem || rem === 'Local Mac' || rem === 'Local PC' || rem === 'local' || rem === '' || rem.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(rem);
   try {
-    const basename = path.basename(srcAbs);
-    const parentDir = path.dirname(srcAbs);
-    await execAsync(`cd "${parentDir}" && zip -r -q "${outAbs}" "${basename}"`, { timeout: 300000 });
-    if (Notification.isSupported()) {
-      new Notification({
-        title: 'דחיסת ארכיון הושלמה!',
-        body: path.basename(outAbs),
-      }).show();
+    if (isLocal) {
+      // Local compression
+      const srcAbs = resolveLocalPath(sourcePath, rem);
+      const outAbs = resolveLocalPath(outputPath, rem);
+      if (process.platform === 'win32') {
+        await execAsync(`powershell -Command "Compress-Archive -Path '${srcAbs.replace(/'/g, "''")}' -DestinationPath '${outAbs.replace(/'/g, "''")}' -Force"`, { timeout: 300000 });
+      } else {
+        const basename = path.basename(srcAbs);
+        const parentDir = path.dirname(srcAbs);
+        await execAsync(`cd "${parentDir}" && zip -r -q "${outAbs}" "${basename}"`, { timeout: 300000 });
+      }
+      if (Notification.isSupported()) {
+        new Notification({ title: 'דחיסת ארכיון הושלמה!', body: path.basename(outAbs) }).show();
+      }
+      return { success: true };
+    } else {
+      // Cloud remote (e.g. Google Drive): download to temp -> compress -> upload directly to cloud remote
+      const rclonePath = rclone.getRcloneInfo().rclonePath || 'rclone';
+      const folderName = path.basename(sourcePath.replace(/\/+$/, '')) || 'archive';
+      const tmpDir = path.join(app.getPath('temp'), `reclone-zip-${Date.now()}`);
+      const downloadDir = path.join(tmpDir, folderName);
+      const zipPath = path.join(tmpDir, `${folderName}.zip`);
+
+      fs.mkdirSync(downloadDir, { recursive: true });
+      const cleanSrc = sourcePath.replace(/\\/g, '/').replace(/^\/+/, '');
+      const cleanOut = outputPath.replace(/\\/g, '/').replace(/^\/+/, '');
+
+      // Download source folder/file from cloud remote to temporary workspace
+      await execAsync(`"${rclonePath}" copy "${rem}:${cleanSrc}" "${downloadDir}" --fast-list`, { env: process.env, timeout: 600000 });
+
+      // Create compressed zip archive
+      if (process.platform === 'win32') {
+        await execAsync(`powershell -Command "Compress-Archive -Path '${downloadDir.replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force"`, { timeout: 300000 });
+      } else {
+        await execAsync(`cd "${tmpDir}" && zip -r -q "${zipPath}" "${folderName}"`, { timeout: 300000 });
+      }
+
+      // Upload zip archive directly back to the cloud remote
+      await execAsync(`"${rclonePath}" copyto "${zipPath}" "${rem}:${cleanOut}"`, { env: process.env, timeout: 600000 });
+
+      // Clean up temp workspace
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+
+      if (Notification.isSupported()) {
+        new Notification({ title: 'דחיסת ארכיון מענן הושלמה!', body: `${path.basename(cleanOut)} נוצר ישירות ב-${rem}` }).show();
+      }
+      return { success: true };
     }
-    return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message || String(e) };
   }
 });
 
-// --- ARCHIVE EXTRACTION ---
+// --- ARCHIVE EXTRACTION (supports local + remote cloud storages) ---
 ipcMain.handle('archive:extract', async (_event, { archivePath, destDir, remote: rem }: { archivePath: string; destDir: string; remote?: string }) => {
-  const arcAbs = resolveLocalPath(archivePath, rem);
-  const dstAbs = resolveLocalPath(destDir, rem);
-  const ext = path.extname(arcAbs).toLowerCase();
+  const isLocal = !rem || rem === 'Local Mac' || rem === 'Local PC' || rem === 'local' || rem === '' || rem.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(rem);
   try {
-    if (!fs.existsSync(dstAbs)) {
-      fs.mkdirSync(dstAbs, { recursive: true });
-    }
-    if (ext === '.zip') {
-      await execAsync(`unzip -o -q "${arcAbs}" -d "${dstAbs}"`, { timeout: 300000 });
-    } else if (ext === '.7z') {
-      await execAsync(`7z x "${arcAbs}" -o"${dstAbs}" -y`, { timeout: 300000 });
-    } else if (ext === '.rar') {
-      await execAsync(`unrar x "${arcAbs}" "${dstAbs}/" -y`, { timeout: 300000 });
-    } else if (ext === '.tar' || arcAbs.endsWith('.tar.gz') || ext === '.tgz') {
-      await execAsync(`tar -xf "${arcAbs}" -C "${dstAbs}"`, { timeout: 300000 });
+    if (isLocal) {
+      const arcAbs = resolveLocalPath(archivePath, rem);
+      const dstAbs = resolveLocalPath(destDir, rem);
+      const ext = path.extname(arcAbs).toLowerCase();
+
+      if (!fs.existsSync(dstAbs)) {
+        fs.mkdirSync(dstAbs, { recursive: true });
+      }
+      if (ext === '.zip') {
+        if (process.platform === 'win32') {
+          await execAsync(`powershell -Command "Expand-Archive -Path '${arcAbs.replace(/'/g, "''")}' -DestinationPath '${dstAbs.replace(/'/g, "''")}' -Force"`, { timeout: 300000 });
+        } else {
+          await execAsync(`unzip -o -q "${arcAbs}" -d "${dstAbs}"`, { timeout: 300000 });
+        }
+      } else if (ext === '.7z') {
+        await execAsync(`7z x "${arcAbs}" -o"${dstAbs}" -y`, { timeout: 300000 });
+      } else if (ext === '.rar') {
+        await execAsync(`unrar x "${arcAbs}" "${dstAbs}/" -y`, { timeout: 300000 });
+      } else if (ext === '.tar' || arcAbs.endsWith('.tar.gz') || ext === '.tgz') {
+        await execAsync(`tar -xf "${arcAbs}" -C "${dstAbs}"`, { timeout: 300000 });
+      } else {
+        return { success: false, error: `Unsupported archive format: ${ext}` };
+      }
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'חילוץ ארכיון הושלם!',
+          body: path.basename(arcAbs),
+        }).show();
+      }
+      return { success: true };
     } else {
-      return { success: false, error: `Unsupported archive format: ${ext}` };
+      // Cloud extraction: download archive to temp, extract, upload back to remote
+      const rclonePath = rclone.getRcloneInfo().rclonePath || 'rclone';
+      const tmpDir = path.join(app.getPath('temp'), `reclone-extract-${Date.now()}`);
+      const cleanArc = archivePath.replace(/\\/g, '/').replace(/^\/+/, '');
+      const cleanDst = destDir.replace(/\\/g, '/').replace(/^\/+/, '');
+      const arcFile = path.join(tmpDir, path.basename(cleanArc));
+      const extractedDir = path.join(tmpDir, 'extracted');
+
+      fs.mkdirSync(extractedDir, { recursive: true });
+
+      // Download archive from cloud
+      await execAsync(`"${rclonePath}" copyto "${rem}:${cleanArc}" "${arcFile}"`, { env: process.env, timeout: 600000 });
+
+      const ext = path.extname(arcFile).toLowerCase();
+      if (ext === '.zip') {
+        if (process.platform === 'win32') {
+          await execAsync(`powershell -Command "Expand-Archive -Path '${arcFile.replace(/'/g, "''")}' -DestinationPath '${extractedDir.replace(/'/g, "''")}' -Force"`, { timeout: 300000 });
+        } else {
+          await execAsync(`unzip -o -q "${arcFile}" -d "${extractedDir}"`, { timeout: 300000 });
+        }
+      } else {
+        await execAsync(`tar -xf "${arcFile}" -C "${extractedDir}"`, { timeout: 300000 });
+      }
+
+      // Upload extracted content to cloud remote destination
+      await execAsync(`"${rclonePath}" copy "${extractedDir}" "${rem}:${cleanDst}" --fast-list`, { env: process.env, timeout: 600000 });
+
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'חילוץ ארכיון בענן הושלם!',
+          body: `${path.basename(cleanArc)} חולץ בהצלחה ב-${rem}`,
+        }).show();
+      }
+      return { success: true };
     }
-    if (Notification.isSupported()) {
-      new Notification({
-        title: 'חילוץ ארכיון הושלם!',
-        body: path.basename(arcAbs),
-      }).show();
-    }
-    return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message || String(e) };
   }
@@ -783,6 +865,45 @@ ipcMain.handle('rclone:get-thumbnail-url', async (_event, { remote, filePath, fi
   } catch {}
 
   return null;
+});
+// --- CHECK FOR UPDATES (GitHub Releases API) ---
+ipcMain.handle('app:check-for-updates', async () => {
+  try {
+    const https = await import('https');
+    const data: string = await new Promise((resolve, reject) => {
+      https.get('https://api.github.com/repos/shalom202770/Reclone-Pro/releases/latest', {
+        headers: { 'User-Agent': 'Reclone-Pro' },
+      }, (res) => {
+        let body = '';
+        res.on('data', (chunk: string) => body += chunk);
+        res.on('end', () => resolve(body));
+        res.on('error', reject);
+      }).on('error', reject);
+    });
+    const release = JSON.parse(data);
+    const currentVersion = app.getVersion();
+    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+
+    const isVersionNewer = (latest: string, current: string): boolean => {
+      const parse = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+      const [lMaj, lMin, lPat] = parse(latest);
+      const [cMaj, cMin, cPat] = parse(current);
+      if (lMaj !== cMaj) return lMaj > cMaj;
+      if (lMin !== cMin) return lMin > cMin;
+      return lPat > cPat;
+    };
+
+    const isNewer = isVersionNewer(latestVersion, currentVersion);
+    return {
+      currentVersion,
+      latestVersion,
+      isNewer,
+      downloadUrl: release.html_url || 'https://github.com/shalom202770/Reclone-Pro/releases/latest',
+      releaseNotes: release.body || '',
+    };
+  } catch (e: any) {
+    return { currentVersion: app.getVersion(), latestVersion: '', isNewer: false, error: e.message };
+  }
 });
 
 app.whenReady().then(async () => {
