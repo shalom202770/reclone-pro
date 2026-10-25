@@ -1,30 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Cloud, Zap, Palette, Server, ArrowRight, Plus } from 'lucide-react';
+import { Cloud, Zap, Palette, Server, ArrowRight, ArrowLeft, Plus } from 'lucide-react';
+import { useTranslation } from '../i18n/context';
 
 interface WelcomeModalProps {
   onDismiss: () => void;
   onConnectRemote?: () => void;
 }
 
-const features = [
-  {
-    icon: <Zap size={20} className="text-amber-400" />,
-    title: 'סנכרון ענן מהיר',
-    desc: '8 העברות מקבילות, 16 בודקים, חיבור מיידי',
-  },
-  {
-    icon: <Palette size={20} className="text-amber-400" />,
-    title: 'עיצוב מותאם אישית',
-    desc: 'ערכות Warm, Light, Dark ו-macOS מקוריות',
-  },
-  {
-    icon: <Server size={20} className="text-amber-400" />,
-    title: 'ניהול ריפוטים מתקדם',
-    desc: 'Google Drive, S3, Dropbox, OneDrive ועוד 50+',
-  },
-];
-
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnectRemote }) => {
+  const { t, isRtl, dir } = useTranslation();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,11 +17,30 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
     return () => window.removeEventListener('keydown', handler);
   }, [onDismiss]);
 
+  const features = [
+    {
+      icon: <Zap size={20} className="text-amber-400" />,
+      title: t('welcome.feat1Title', 'סנכרון ענן מהיר'),
+      desc: t('welcome.feat1Desc', '8 העברות מקבילות, 16 בודקים, חיבור מיידי'),
+    },
+    {
+      icon: <Palette size={20} className="text-amber-400" />,
+      title: t('welcome.feat2Title', 'עיצוב מותאם אישית'),
+      desc: t('welcome.feat2Desc', 'ערכות Warm, Light, Dark ו-macOS מקוריות'),
+    },
+    {
+      icon: <Server size={20} className="text-amber-400" />,
+      title: t('welcome.feat3Title', 'ניהול ריפוטים מתקדם'),
+      desc: t('welcome.feat3Desc', 'Google Drive, S3, Dropbox, OneDrive ועוד 50+'),
+    },
+  ];
+
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      className="fixed inset-0 z-[9999] flex items-center justify-center select-none"
       style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(18px)' }}
+      dir={dir}
     >
       <div
         className="relative flex flex-col items-center rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300"
@@ -70,13 +73,13 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
           </div>
 
           <h1
-            className="text-2xl font-bold tracking-tight mb-1"
-            style={{ color: '#f5ede6', direction: 'rtl' }}
+            className="text-2xl font-bold tracking-tight mb-1 text-center"
+            style={{ color: '#f5ede6' }}
           >
-            ברוכים הבאים ל-Reclone Pro
+            {t('welcome.title', 'ברוכים הבאים ל-Reclone Pro')}
           </h1>
-          <p className="text-sm text-center" style={{ color: '#9a847a', direction: 'rtl' }}>
-            מנהל קבצים ענן מתקדם — מהיר, חזק ויפה
+          <p className="text-sm text-center" style={{ color: '#9a847a' }}>
+            {t('welcome.subtitle', 'מנהל קבצים ענן מתקדם — מהיר, חזק ויפה')}
           </p>
         </div>
 
@@ -91,7 +94,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
               style={{
                 background: 'rgba(255,255,255,0.035)',
                 border: '1px solid rgba(255,255,255,0.06)',
-                direction: 'rtl',
               }}
             >
               <div
@@ -109,7 +111,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
         </div>
 
         {/* Actions */}
-        <div className="w-full px-8 pb-7 flex flex-col gap-2.5" style={{ direction: 'rtl' }}>
+        <div className="w-full px-8 pb-7 flex flex-col gap-2.5">
           <button
             onClick={onDismiss}
             className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-semibold text-base transition-all duration-200 cursor-pointer"
@@ -122,8 +124,8 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
             onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.1)')}
             onMouseLeave={e => (e.currentTarget.style.filter = 'brightness(1)')}
           >
-            <span>התחל עכשיו</span>
-            <ArrowRight size={18} />
+            <span>{t('welcome.startNow', 'התחל עכשיו')}</span>
+            {isRtl ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
           </button>
 
           {onConnectRemote && (
@@ -139,12 +141,12 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss, onConnect
               onMouseLeave={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.12)')}
             >
               <Plus size={16} />
-              <span>חבר כונן ענן ראשון</span>
+              <span>{t('welcome.connectFirst', 'חבר כונן ענן ראשון')}</span>
             </button>
           )}
 
           <p className="text-center text-xs mt-1" style={{ color: '#4a3e38' }}>
-            Reclone Pro v1.0 • powered by rclone
+            {t('welcome.footer', 'Reclone Pro v1.0 • powered by rclone')}
           </p>
         </div>
       </div>

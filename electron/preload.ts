@@ -79,6 +79,9 @@ const api = {
   openPath: (filePath: string, remote?: string): Promise<void> => {
     return ipcRenderer.invoke('shell:open-path', { remote, filePath });
   },
+  openExternal: (url: string): Promise<boolean> => {
+    return ipcRenderer.invoke('shell:open-external', url);
+  },
   getThumbnailUrl: (remote: string, filePath: string, fileId?: string): Promise<string | null> => {
     return ipcRenderer.invoke('rclone:get-thumbnail-url', { remote, filePath, fileId });
   },

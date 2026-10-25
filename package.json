@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Professional high-performance Rclone GUI file manager for macOS",
   "main": "dist-electron/main.js",
-  "author": "Reclone Pro Team",
+  "author": {
+    "name": "Shalom Dovber Kripor",
+    "email": "shalom202770@gmail.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "npm run build:electron && concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",

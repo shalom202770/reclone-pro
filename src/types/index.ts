@@ -96,6 +96,7 @@ export interface AppSettings {
   fastList: boolean;
   showHiddenFiles: boolean;
   language: 'he' | 'en';
+  fontFamily?: string;
   theme: ThemeMode;
   customTheme?: CustomThemeColors;
   defaultLocalPath: string;

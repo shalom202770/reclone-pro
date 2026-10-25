@@ -55,12 +55,12 @@ export function getFileCategory(name: string, isDir: boolean): 'folder' | 'image
   return 'file';
 }
 
-export function formatRemainingTime(seconds: number | string | undefined | null): string {
+export function formatRemainingTime(seconds: number | string | undefined | null, isEn: boolean = false): string {
   if (seconds === undefined || seconds === null || seconds === '' || seconds === '--') return '--';
   
   let secs: number;
   if (typeof seconds === 'string') {
-    if (seconds.includes('הסתיים') || seconds.includes('מתחיל') || seconds.includes('מושהה')) return seconds;
+    if (seconds.includes('הסתיים') || seconds.includes('מתחיל') || seconds.includes('מושהה') || seconds.includes('Completed') || seconds.includes('Starting') || seconds.includes('Paused')) return seconds;
     const num = parseInt(seconds.replace(/[^\d.]/g, ''), 10);
     if (isNaN(num)) return seconds;
     secs = num;
@@ -69,26 +69,28 @@ export function formatRemainingTime(seconds: number | string | undefined | null)
   }
 
   if (isNaN(secs) || secs < 0) return '--';
-  if (secs === 0) return 'פחות מדקה';
-  if (secs < 60) return `${secs} שניות`;
+  if (secs === 0) return isEn ? '< 1 min' : 'פחות מדקה';
+  if (secs < 60) return isEn ? `${secs}s` : `${secs} שניות`;
 
   const totalMinutes = Math.floor(secs / 60);
 
   if (totalMinutes < 60) {
-    return `${totalMinutes} דקות`;
+    return isEn ? `${totalMinutes}m` : `${totalMinutes} דקות`;
   }
 
   const hours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
 
   if (remainingMinutes === 0) {
+    if (isEn) return `${hours}h`;
     return hours === 1 ? 'שעה אחת' : `${hours} שעות`;
   }
 
+  if (isEn) return `${hours}h ${remainingMinutes}m`;
   const hoursStr = hours === 1 ? 'שעה אחת' : `${hours} שעות`;
   return `${hoursStr} ו-${remainingMinutes} דקות`;
 }
 
-export function formatETA(seconds: number): string {
-  return formatRemainingTime(seconds);
+export function formatETA(seconds: number, isEn: boolean = false): string {
+  return formatRemainingTime(seconds, isEn);
 }

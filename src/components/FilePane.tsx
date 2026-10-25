@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { RcloneItem, ViewMode, SortField, SortOrder } from '../types';
 import { formatBytes, formatDate, getFileCategory } from '../lib/utils';
+import { useTranslation } from '../i18n/context';
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'heic']);
 const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi']);
@@ -87,6 +88,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
   onNewFolderWithSelection,
   onBatchRename,
 }) => {
+  const { t, isRtl } = useTranslation();
   const [quickLookItem, setQuickLookItem] = useState<RcloneItem | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -379,7 +381,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
     <div
       ref={containerRef}
       tabIndex={0}
-      className="flex-1 flex flex-col bg-surface overflow-hidden relative text-right select-none outline-none focus:outline-none"
+      className={`flex-1 flex flex-col bg-surface overflow-hidden relative ${isRtl ? 'text-right' : 'text-left'} select-none outline-none focus:outline-none`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onKeyDown={handleKeyDown}
@@ -388,7 +390,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
       {/* Error Banner */}
       {error && (
         <div className="bg-mac-danger/15 border-b border-mac-danger/30 text-mac-danger px-4 py-2 text-xs flex items-center justify-between">
-          <span>שגיאה: {error}</span>
+          <span>{t('common.error', 'שגיאה')}: {error}</span>
         </div>
       )}
 
@@ -397,7 +399,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
         <div className="absolute inset-0 bg-surface/75 backdrop-blur-xs flex flex-col p-4 space-y-3 z-20">
           <div className="flex items-center space-x-2 space-x-reverse text-xs text-gray-400 mb-2">
             <div className="w-3.5 h-3.5 border-2 border-mac-accent border-t-transparent rounded-full animate-spin" />
-            <span>סורק קבצים ותיקיות ב-{remote}...</span>
+            <span>{t('filePane.loadingFiles', 'סורק קבצים ותיקיות ב-')} {remote}...</span>
           </div>
           {[...Array(9)].map((_, i) => (
             <div
@@ -422,22 +424,22 @@ export const FilePane: React.FC<FilePaneProps> = ({
               className="col-span-8 sm:col-span-6 flex items-center space-x-1 space-x-reverse cursor-pointer group min-w-0"
               onClick={() => onSort('Name')}
             >
-              <span className="truncate">שם הפריט</span>
+              <span className="truncate">{t('filePane.name', 'שם הפריט')}</span>
               {renderSortIndicator('Name')}
             </div>
             <div
               className="col-span-4 sm:col-span-2 flex items-center space-x-1 space-x-reverse cursor-pointer group justify-start font-mono"
               onClick={() => onSort('Size')}
             >
-              <span>גודל</span>
+              <span>{t('filePane.size', 'גודל')}</span>
               {renderSortIndicator('Size')}
             </div>
-            <div className="hidden sm:block sm:col-span-2 pr-2 truncate">סוג</div>
+            <div className="hidden sm:block sm:col-span-2 pr-2 truncate">{t('filePane.type', 'סוג')}</div>
             <div
               className="hidden sm:flex sm:col-span-2 items-center space-x-1 space-x-reverse cursor-pointer group justify-start"
               onClick={() => onSort('ModTime')}
             >
-              <span>תאריך</span>
+              <span>{t('filePane.modified', 'תאריך')}</span>
               {renderSortIndicator('ModTime')}
             </div>
           </div>
@@ -447,9 +449,9 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {sortedItems.length === 0 && !loading ? (
               <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500">
                 <FolderOpen className="w-12 h-12 stroke-[1.2] mb-3 text-gray-600" />
-                <p className="text-sm font-medium text-gray-400">התיקייה ריקה</p>
+                <p className="text-sm font-medium text-gray-400">{t('filePane.emptyFolder', 'התיקייה ריקה')}</p>
                 <p className="text-xs text-gray-600 mt-1">
-                  גרור קבצים לכאן או השתמש בסרגל הכלים להעלאה או יצירת תיקייה
+                  {t('filePane.dragDropHint', 'גרור קבצים לכאן או השתמש בסרגל הכלים להעלאה או יצירת תיקייה')}
                 </p>
               </div>
             ) : (
@@ -632,10 +634,10 @@ export const FilePane: React.FC<FilePaneProps> = ({
       {/* Pane Footer Info Bar */}
       <div className="h-6 bg-surface-muted border-t border-surface-border px-3 flex items-center justify-between text-[11px] text-gray-400 select-none">
         <div>
-          <span>{items.length} פריטים</span>
+          <span>{t('filePane.totalItems', { count: items.length })}</span>
           {selectedItems.size > 0 && (
-            <span className="text-mac-accent mr-2 font-medium">
-              ({selectedItems.size} נבחרו)
+            <span className="text-mac-accent mx-2 font-medium">
+              ({t('filePane.itemsSelected', { count: selectedItems.size })})
             </span>
           )}
         </div>
@@ -667,20 +669,20 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Open */}
             {isLocalRemote && !item.IsDir && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => { handleOpenFile(item); setContextMenu(null); }}
               >
                 <span>📄</span>
-                <span>פתח קובץ</span>
+                <span>{t('filePane.openFile', 'פתח קובץ')}</span>
               </button>
             )}
             {item.IsDir && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => { onOpenFolder(item.Path); setContextMenu(null); }}
               >
                 <span>📂</span>
-                <span>פתח תיקייה</span>
+                <span>{t('filePane.openFolder', 'פתח תיקייה')}</span>
               </button>
             )}
 
@@ -689,7 +691,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* New Folder with Selection (macOS style) */}
             {selectedItems.size > 1 && onNewFolderWithSelection && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2 text-mac-accent font-medium"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2 text-mac-accent font-medium`}
                 onClick={() => {
                   const selList = items.filter((i) => selectedItems.has(i.Path));
                   onNewFolderWithSelection(selList);
@@ -697,14 +699,14 @@ export const FilePane: React.FC<FilePaneProps> = ({
                 }}
               >
                 <span>📁</span>
-                <span>תיקייה חדשה עם פריטים שנבחרו ({selectedItems.size})</span>
+                <span>{t('filePane.newFolderWithSelection', { count: selectedItems.size })}</span>
               </button>
             )}
 
             {/* Batch Renaming */}
             {selectedItems.size > 1 && onBatchRename && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => {
                   const selList = items.filter((i) => selectedItems.has(i.Path));
                   onBatchRename(selList);
@@ -712,21 +714,21 @@ export const FilePane: React.FC<FilePaneProps> = ({
                 }}
               >
                 <span>✏️</span>
-                <span>שינוי שמות מרוכז...</span>
+                <span>{t('filePane.batchRename', 'שינוי שמות מרוכז...')}</span>
               </button>
             )}
 
             {/* Properties / Get Info */}
             {onGetInfo && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => {
                   onGetInfo(item);
                   setContextMenu(null);
                 }}
               >
                 <span>ℹ️</span>
-                <span>הצג מידע (Get Info / Properties)</span>
+                <span>{t('filePane.getInfo', 'הצג מידע (Get Info / Properties)')}</span>
               </button>
             )}
 
@@ -735,22 +737,22 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Compress */}
             {isLocalRemote && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => { handleCompress(item); setContextMenu(null); }}
               >
                 <span>📦</span>
-                <span>{item.IsDir ? 'דחוס תיקייה ל-ZIP' : 'דחוס ל-ZIP'}</span>
+                <span>{item.IsDir ? t('filePane.compressFolderToZip', 'דחוס תיקייה ל-ZIP') : t('filePane.compressToZip', 'דחוס ל-ZIP')}</span>
               </button>
             )}
 
             {/* Extract */}
             {isLocalRemote && isArchive && (
               <button
-                className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                 onClick={() => { handleExtract(item); setContextMenu(null); }}
               >
                 <span>📂</span>
-                <span>חלץ ארכיון כאן</span>
+                <span>{t('filePane.extractArchive', 'חלץ ארכיון כאן')}</span>
               </button>
             )}
 
@@ -761,38 +763,38 @@ export const FilePane: React.FC<FilePaneProps> = ({
                 {isHeic ? (
                   <>
                     <button
-                      className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                      className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                       onClick={() => { handleImageConvert(item, 'jpeg'); setContextMenu(null); }}
                     >
                       <span>📱</span>
-                      <span>המר HEIC ל-JPEG (עבור iPhone)</span>
+                      <span>{t('filePane.convertHeicToJpeg', 'המר HEIC ל-JPEG')}</span>
                     </button>
                     <button
-                      className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                      className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                       onClick={() => { handleImageConvert(item, 'png'); setContextMenu(null); }}
                     >
                       <span>📱</span>
-                      <span>המר HEIC ל-PNG</span>
+                      <span>{t('filePane.convertHeicToPng', 'המר HEIC ל-PNG')}</span>
                     </button>
                   </>
                 ) : (
                   <>
                     {!isJpeg && (
                       <button
-                        className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                        className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                         onClick={() => { handleImageConvert(item, 'jpeg'); setContextMenu(null); }}
                       >
                         <span>🖼️</span>
-                        <span>המר ל-JPEG</span>
+                        <span>{t('filePane.convertToJpeg', 'המר ל-JPEG')}</span>
                       </button>
                     )}
                     {!isPng && (
                       <button
-                        className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                        className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                         onClick={() => { handleImageConvert(item, 'png'); setContextMenu(null); }}
                       >
                         <span>🖼️</span>
-                        <span>המר ל-PNG</span>
+                        <span>{t('filePane.convertToPng', 'המר ל-PNG')}</span>
                       </button>
                     )}
                   </>
@@ -806,27 +808,27 @@ export const FilePane: React.FC<FilePaneProps> = ({
                 <div className="h-px bg-white/10 mx-2 my-1" />
                 {isVideo && (
                   <button
-                    className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                    className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                     onClick={() => { handleConvert(item, 'mp4'); setContextMenu(null); }}
                   >
                     <span>🎬</span>
-                    <span>המר ל-MP4 (H.264)</span>
+                    <span>{t('filePane.convertToMp4', 'המר ל-MP4 (H.264)')}</span>
                   </button>
                 )}
                 <button
-                  className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                  className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                   onClick={() => { handleConvert(item, 'mp3'); setContextMenu(null); }}
                 >
                   <span>🎵</span>
-                  <span>חלץ שמע ל-MP3</span>
+                  <span>{t('filePane.extractAudioMp3', 'חלץ שמע ל-MP3')}</span>
                 </button>
                 {isVideo && (
                   <button
-                    className="w-full px-3 py-1.5 text-right hover:bg-white/10 transition-colors flex items-center gap-2"
+                    className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
                     onClick={() => { handleConvert(item, 'web'); setContextMenu(null); }}
                   >
                     <span>🌐</span>
-                    <span>דחוס לאינטרנט (720p)</span>
+                    <span>{t('filePane.compressForWeb', 'דחוס לאינטרנט (720p)')}</span>
                   </button>
                 )}
               </>
@@ -836,11 +838,11 @@ export const FilePane: React.FC<FilePaneProps> = ({
 
             {/* Delete */}
             <button
-              className="w-full px-3 py-1.5 text-right hover:bg-red-500/20 text-red-400 transition-colors flex items-center gap-2"
+              className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-red-500/20 text-red-400 transition-colors flex items-center gap-2`}
               onClick={() => { onDeleteItem(item); setContextMenu(null); }}
             >
               <span>🗑️</span>
-              <span>מחק</span>
+              <span>{t('filePane.deleteItem', 'מחק')}</span>
             </button>
           </div>
         );

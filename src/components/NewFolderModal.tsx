@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FolderPlus, X } from 'lucide-react';
+import { useTranslation } from '../i18n/context';
 
 interface NewFolderModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const NewFolderModal: React.FC<NewFolderModalProps> = ({
   onClose,
   onCreate,
 }) => {
+  const { t, isRtl, dir } = useTranslation();
   const [folderName, setFolderName] = useState('');
 
   if (!isOpen) return null;
@@ -29,13 +31,13 @@ export const NewFolderModal: React.FC<NewFolderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none text-right">
-      <div className="w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none" dir={dir}>
+      <div className={`w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden ${isRtl ? 'text-right' : 'text-left'}`}>
         <form onSubmit={handleSubmit}>
           <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between bg-surface-muted">
             <div className="flex items-center space-x-2 space-x-reverse">
               <FolderPlus className="w-4 h-4 text-mac-warning" />
-              <h3 className="text-sm font-semibold text-foreground">יצירת תיקייה חדשה</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('newFolder.title', 'יצירת תיקייה חדשה')}</h3>
             </div>
             <button
               type="button"
@@ -48,7 +50,7 @@ export const NewFolderModal: React.FC<NewFolderModalProps> = ({
 
           <div className="p-5 space-y-3">
             <p className="text-xs text-gray-400">
-              יצירת תיקייה במיקום:{' '}
+              {t('newFolder.location', 'יצירת תיקייה במיקום:')}{' '}
               <span className="text-foreground font-mono font-medium" dir="ltr">
                 {remote === 'Local Mac' ? 'Mac' : remote}:{(currentPath || '').replace(/^(?:file|mac|local\s*mac):\/{0,3}/i, '/').replace(/^\/+/, '/') || '/'}
               </span>
@@ -56,7 +58,7 @@ export const NewFolderModal: React.FC<NewFolderModalProps> = ({
             <input
               type="text"
               autoFocus
-              placeholder="שם התיקייה"
+              placeholder={t('newFolder.placeholder', 'שם התיקייה')}
               value={folderName}
               onChange={(e) => setFolderName(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-lg bg-surface-muted border border-surface-border text-foreground focus:border-mac-accent"
@@ -69,14 +71,14 @@ export const NewFolderModal: React.FC<NewFolderModalProps> = ({
               onClick={onClose}
               className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white"
             >
-              ביטול
+              {t('common.cancel', 'ביטול')}
             </button>
             <button
               type="submit"
               disabled={!folderName.trim()}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent hover:bg-mac-accentHover text-white disabled:opacity-40 shadow-sm"
             >
-              צור תיקייה
+              {t('newFolder.createBtn', 'צור תיקייה')}
             </button>
           </div>
         </form>

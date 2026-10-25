@@ -270,6 +270,14 @@ ipcMain.handle('shell:open-path', async (_event, { remote: rem, filePath }: { re
   await shell.openPath(absPath);
 });
 
+ipcMain.handle('shell:open-external', async (_event, url: string) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('mailto:'))) {
+    await shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
 // Helper: locate executable binaries across system and package manager paths
 function findExecutable(binName: string): string {
   const candidates = [

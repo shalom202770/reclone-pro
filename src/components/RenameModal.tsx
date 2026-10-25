@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Edit2, X } from 'lucide-react';
+import { useTranslation } from '../i18n/context';
 
 interface RenameModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   onClose,
   onRename,
 }) => {
+  const { t, isRtl, dir } = useTranslation();
   const [name, setName] = useState(currentName);
 
   if (!isOpen) return null;
@@ -29,13 +31,13 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none">
-      <div className="w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden text-right">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none" dir={dir}>
+      <div className={`w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden ${isRtl ? 'text-right' : 'text-left'}`}>
         <form onSubmit={handleSubmit}>
           <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between bg-surface-muted">
             <div className="flex items-center space-x-2 space-x-reverse">
               <Edit2 className="w-4 h-4 text-mac-accent" />
-              <h3 className="text-sm font-semibold text-foreground">שינוי שם פריט</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('rename.title', 'שינוי שם פריט')}</h3>
             </div>
             <button
               type="button"
@@ -48,7 +50,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
 
           <div className="p-5 space-y-3">
             <p className="text-xs text-gray-400">
-              הזן שם חדש עבור הקובץ או התיקייה:
+              {t('rename.placeholder', 'שם חדש')}:
             </p>
             <input
               type="text"
@@ -65,14 +67,14 @@ export const RenameModal: React.FC<RenameModalProps> = ({
               onClick={onClose}
               className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white"
             >
-              ביטול
+              {t('common.cancel', 'ביטול')}
             </button>
             <button
               type="submit"
               disabled={!name.trim()}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent hover:bg-mac-accentHover text-white shadow-sm"
             >
-              אישור ושינוי
+              {t('rename.renameBtn', 'שנה שם')}
             </button>
           </div>
         </form>

@@ -15,6 +15,7 @@ import { ChecksumModal } from './components/ChecksumModal';
 import { BatchRenameModal } from './components/BatchRenameModal';
 import { DuplicateScannerModal } from './components/DuplicateScannerModal';
 import { WelcomeModal } from './components/WelcomeModal';
+import { useTranslation } from './i18n/context';
 import type { 
   PaneState, 
   RemoteInfo, 
@@ -62,6 +63,7 @@ const INITIAL_PANE = (id: 'left' | 'right', defaultRemote: string): PaneState =>
 });
 
 export const App: React.FC = () => {
+  const { t, isRtl, dir } = useTranslation();
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('hasSeenOnboarding'));
   const [dualPane, setDualPane] = useState(true);
   const [remotes, setRemotes] = useState<RemoteInfo[]>([]);
@@ -604,7 +606,7 @@ export const App: React.FC = () => {
     <div
       className={`flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground font-sans ${themeClass}`}
       style={customStyles}
-      dir="rtl"
+      dir={dir}
     >
       {/* Welcome / Onboarding Modal — first launch only */}
       {showWelcome && (
@@ -635,8 +637,8 @@ export const App: React.FC = () => {
 
       {/* 2. Main File Panes Layout */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative m-0 p-0">
-        {/* Right Pane (in RTL, Right Pane is visually on the right) */}
-        <div className={`flex-1 flex flex-col min-w-0 ${dualPane ? 'border-l border-surface-border' : ''}`}>
+        {/* Left Pane (visual order follows dir) */}
+        <div className={`flex-1 flex flex-col min-w-0 ${dualPane ? (isRtl ? 'border-l' : 'border-r') + ' border-surface-border' : ''}`}>
           <Toolbar
             paneId="left"
             remote={leftPane.remote}

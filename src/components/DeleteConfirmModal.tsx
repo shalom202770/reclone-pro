@@ -1,5 +1,6 @@
 import React from 'react';
-import { Trash2, AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from '../i18n/context';
 
 interface DeleteConfirmModalProps {
   isOpen: boolean;
@@ -16,15 +17,17 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t, isRtl, dir } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none text-right">
-      <div className="w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-subtle animate-in fade-in duration-100 select-none" dir={dir}>
+      <div className={`w-96 rounded-2xl bg-surface border border-surface-border shadow-popover overflow-hidden ${isRtl ? 'text-right' : 'text-left'}`}>
         <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between bg-surface-muted">
           <div className="flex items-center space-x-2 space-x-reverse text-mac-danger">
             <AlertTriangle className="w-4 h-4" />
-            <h3 className="text-sm font-semibold text-foreground">אישור מחיקה לצמיתות</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('deleteConfirm.title', 'אישור מחיקה לצמיתות')}</h3>
           </div>
           <button
             onClick={onClose}
@@ -36,10 +39,10 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         <div className="p-5 space-y-2">
           <p className="text-xs text-gray-300">
-            האם אתה בטוח שברצונך למחוק לצמיתות <strong className="text-foreground">{itemCount} פריטים</strong> מתוך <span className="font-mono text-mac-accent">{remote}</span>?
+            {t('deleteConfirm.message', { count: itemCount, remote })}
           </p>
           <p className="text-[11px] text-gray-500">
-            פעולה זו אינה ניתנת לביטול. במידה ומדובר באחסון ענן, הפריטים ימחקו לאלתר.
+            {t('deleteConfirm.warning', 'פעולה זו אינה ניתנת לביטול.')}
           </p>
         </div>
 
@@ -48,7 +51,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             onClick={onClose}
             className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white"
           >
-            ביטול
+            {t('common.cancel', 'ביטול')}
           </button>
           <button
             onClick={() => {
@@ -57,7 +60,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             }}
             className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-mac-danger hover:bg-red-600 text-white shadow-sm"
           >
-            מחק לצמיתות
+            {t('deleteConfirm.deleteBtn', 'מחק לצמיתות')}
           </button>
         </div>
       </div>

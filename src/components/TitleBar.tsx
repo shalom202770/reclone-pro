@@ -10,6 +10,7 @@ import {
   GitCompare
 } from 'lucide-react';
 import type { AppSettings } from '../types';
+import { useTranslation } from '../i18n/context';
 
 interface TitleBarProps {
   dualPane: boolean;
@@ -34,14 +35,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onRefreshAll,
   logsOpen,
   settings,
-  activeTransferCount,
 }) => {
-  // Native macOS traffic lights are rendered automatically by titleBarStyle: 'hiddenInset'
+  const { t, isRtl } = useTranslation();
 
   return (
     <header className="mac-drag-region h-11 bg-surface border-b border-surface-border flex items-center justify-between px-3 shrink-0 select-none z-30">
-      {/* Left side: Spacing for macOS native traffic lights + Branding */}
-      <div className="flex items-center space-x-3.5 pr-[110px]">
+      {/* Branding & Status Indicator */}
+      <div className={`flex items-center space-x-3.5 ${isRtl ? 'pr-2' : 'pl-[78px]'}`}>
         {/* Logo & App Name */}
         <div className="flex items-center space-x-1.5 space-x-reverse">
           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-mac-accent to-amber-700 flex items-center justify-center shadow-sm shrink-0">
@@ -61,19 +61,19 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           />
           <span className="font-sans text-[10px]">
             {settings.rcloneDetected ? (
-              `Rclone פעיל (${settings.rcloneVersion.replace(/^rclone\s*/i, '').split(' ')[0]})`
+              `${t('titlebar.rcloneActive', 'Rclone פעיל')} (${settings.rcloneVersion.replace(/^rclone\s*/i, '').split(' ')[0]})`
             ) : (
-              'Rclone חסר במערכת'
+              t('titlebar.rcloneMissing', 'Rclone חסר במערכת')
             )}
           </span>
         </div>
       </div>
 
-      {/* Middle side: Pane Toggle & Tools */}
+      {/* Middle side: Pane Toggle */}
       <div className="mac-no-drag flex items-center space-x-1 bg-surface-muted p-0.5 rounded-lg border border-surface-border">
         <button
           onClick={onToggleDualPane}
-          title={dualPane ? 'מעבר לחלון יחיד' : 'מעבר לתצוגה כפולה'}
+          title={dualPane ? t('titlebar.singlePaneTitle', 'מעבר לחלון יחיד') : t('titlebar.dualPaneTitle', 'מעבר לתצוגה כפולה')}
           className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
             dualPane
               ? 'bg-mac-accent text-white shadow-sm'
@@ -81,12 +81,12 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           }`}
         >
           <Columns2 className="w-3.5 h-3.5" />
-          <span>תצוגה כפולה</span>
+          <span>{t('titlebar.dualPane', 'תצוגה כפולה')}</span>
         </button>
 
         <button
           onClick={onToggleDualPane}
-          title="חלון יחיד"
+          title={t('titlebar.singlePaneTitle', 'חלון יחיד')}
           className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
             !dualPane
               ? 'bg-mac-accent text-white shadow-sm'
@@ -94,36 +94,36 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           }`}
         >
           <Square className="w-3.5 h-3.5" />
-          <span>חלון יחיד</span>
+          <span>{t('titlebar.singlePane', 'חלון יחיד')}</span>
         </button>
       </div>
 
-      {/* Right side: Top Tools & Management */}
-      <div className="mac-no-drag flex items-center space-x-1.5 space-x-reverse">
+      {/* Right / Left Side Tools */}
+      <div className={`mac-no-drag flex items-center space-x-1.5 space-x-reverse ${isRtl ? 'pl-[78px]' : 'pr-1'}`}>
         {/* Accounts management */}
         <button
           onClick={onOpenAccounts}
-          title="ניהול חשבונות ענן ואחסון"
+          title={t('titlebar.accountsTitle', 'ניהול חשבונות ענן ואחסון')}
           className="flex items-center space-x-1.5 space-x-reverse px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-xs font-medium text-gray-200 hover:text-white hover:bg-surface-hover active:bg-surface-active transition-colors shadow-sm"
         >
           <Users className="w-3.5 h-3.5 text-mac-accent" />
-          <span>ניהול חשבונות</span>
+          <span>{t('titlebar.accounts', 'ניהול חשבונות')}</span>
         </button>
 
         {/* Compare folders */}
         <button
           onClick={onOpenCompare}
-          title="השוואת תיקיות וסנכרון בין הפאנלים"
+          title={t('titlebar.compareTitle', 'השוואת תיקיות וסנכרון בין הפאנלים')}
           className="flex items-center space-x-1.5 space-x-reverse px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-xs font-medium text-gray-200 hover:text-white hover:bg-surface-hover active:bg-surface-active transition-colors shadow-sm"
         >
           <GitCompare className="w-3.5 h-3.5 text-mac-cyan" />
-          <span>השוואה</span>
+          <span>{t('titlebar.compare', 'השוואה')}</span>
         </button>
 
         {/* Refresh */}
         <button
           onClick={onRefreshAll}
-          title="טען מחדש את שני הפאנלים"
+          title={t('titlebar.refreshAllTitle', 'טען מחדש את שני הפאנלים')}
           className="p-1.5 rounded-lg text-foreground/75 hover:text-foreground hover:bg-surface-hover active:bg-surface-active transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
@@ -132,7 +132,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         {/* Logs */}
         <button
           onClick={onToggleLogs}
-          title="יומן פקודות Rclone בזמן אמת"
+          title={t('titlebar.logsTitle', 'יומן פקודות Rclone בזמן אמת')}
           className={`flex items-center space-x-1 space-x-reverse px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
             logsOpen
               ? 'bg-mac-accent/15 text-mac-accent border border-mac-accent/30'
@@ -140,13 +140,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           }`}
         >
           <Terminal className="w-3.5 h-3.5" />
-          <span>יומן</span>
+          <span>{t('titlebar.logs', 'יומן')}</span>
         </button>
 
         {/* Settings */}
         <button
           onClick={onOpenSettings}
-          title="הגדרות מתקדמות"
+          title={t('titlebar.settingsTitle', 'הגדרות מתקדמות')}
           className="p-1.5 rounded-lg text-foreground/75 hover:text-foreground hover:bg-surface-hover active:bg-surface-active transition-colors"
         >
           <Settings className="w-3.5 h-3.5" />
