@@ -61,6 +61,26 @@ npm run package:mac
 
 ---
 
+## 🍏 macOS Gatekeeper ("File is Damaged" Warning)
+
+Because Reclone Pro is an open-source project and not signed with an expensive Apple Developer ID certificate, macOS Gatekeeper may show a warning:
+> *"Reclone Pro is damaged and can't be opened. You should move it to the Trash."*
+
+You can easily bypass this in one of two ways:
+
+### Option 1: Right-Click (Finder)
+1. In `/Applications`, **Right-Click** (or `Control` + Click) on **Reclone Pro.app**.
+2. Select **Open** from the context menu.
+3. In the dialog that appears, click **Open** to confirm.
+
+### Option 2: Terminal Command
+Run the following command in Terminal to clear Apple's quarantine flag:
+```bash
+sudo xattr -cr /Applications/Reclone\ Pro.app
+```
+
+---
+
 ## Tech Stack
 - **Desktop Runtime**: Electron 33 (Main/Preload/IPC Architecture with macOS `hiddenInset` Title Bar)
 - **Frontend Framework**: React 19 + TypeScript + Vite 6

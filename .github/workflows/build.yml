@@ -81,6 +81,7 @@ jobs:
         with:
           files: artifacts/*
           fail_on_unmatched_files: false
+          overwrite: true
           make_latest: true
           tag_name: ${{ github.ref_name }}
           name: Reclone Pro ${{ github.ref_name }}
