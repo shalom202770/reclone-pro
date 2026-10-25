@@ -698,7 +698,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-mac-accent/10 text-mac-accent border border-mac-accent/20">
-                v1.0.0 Pro
+                v1.0.1 Pro
               </span>
             </div>
 

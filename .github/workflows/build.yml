@@ -82,5 +82,14 @@ jobs:
           files: artifacts/*
           fail_on_unmatched_files: false
           make_latest: true
+          tag_name: ${{ github.ref_name }}
+          name: Reclone Pro ${{ github.ref_name }}
+          body: |
+            ### Reclone Pro Release ${{ github.ref_name }}
+
+            - Fixed Windows Rclone binary pathing and ENOENT errors.
+            - Added automated native Windows Rclone download and extraction.
+            - Removed Homebrew dependency prompts on Windows systems.
+            - Performance and UI improvements.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 {
   "name": "reclone-pro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Professional high-performance Rclone GUI file manager for macOS",
   "main": "dist-electron/main.js",
   "author": {
