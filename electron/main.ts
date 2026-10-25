@@ -785,10 +785,10 @@ ipcMain.handle('rclone:get-thumbnail-url', async (_event, { remote, filePath, fi
   return null;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
     rclone.setUserDataPath(app.getPath('userData'));
-    rclone.detectRclonePath();
+    await rclone.detectRclonePath(undefined, process.platform === 'win32');
   } catch {}
 
   // Register protocol handler for local file access with safe URL conversion

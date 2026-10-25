@@ -76,7 +76,7 @@ export class RcloneManager {
     this.userDataPath = p;
   }
 
-  public async detectRclonePath(customPath?: string): Promise<{ detected: boolean; path: string; version: string; configPath: string }> {
+  public async detectRclonePath(customPath?: string, autoSetupIfMissing: boolean = false): Promise<{ detected: boolean; path: string; version: string; configPath: string }> {
     const isWin = process.platform === 'win32';
     const localUserExe = this.userDataPath
       ? path.join(this.userDataPath, 'bin', isWin ? 'rclone.exe' : 'rclone')
@@ -127,6 +127,16 @@ export class RcloneManager {
     this.isDetected = false;
     this.versionInfo = isWin ? 'לא מותקן (נדרשת הורדה והגדרה או נתיב ידני)' : 'לא מותקן (נדרשת התקנה דרך Homebrew או הגדרת נתיב)';
     this.log('warn', 'קובץ ההרצה של Rclone לא נמצא במערכת.');
+
+    // Auto-setup on Windows if missing
+    if (isWin && autoSetupIfMissing && this.userDataPath) {
+      this.log('info', 'מפעיל הורדה והגדרה אוטומטית של Rclone עבור Windows...');
+      const setupRes = await this.installForWindows();
+      if (setupRes.success && setupRes.path) {
+        return await this.detectRclonePath(setupRes.path, false);
+      }
+    }
+
     return { detected: false, path: this.rclonePath, version: this.versionInfo, configPath: this.configPath };
   }
 
