@@ -41,7 +41,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   return (
     <header className="mac-drag-region h-11 bg-surface border-b border-surface-border flex items-center justify-between px-3 shrink-0 select-none z-30">
       {/* Branding & Status Indicator */}
-      <div className={`flex items-center space-x-3.5 ${isRtl ? 'pr-2' : 'pl-[78px]'}`}>
+      <div className={`flex items-center space-x-3.5 ${isRtl ? 'pr-[110px]' : 'pl-[78px]'}`}>
         {/* Logo & App Name */}
         <div className="flex items-center space-x-1.5 space-x-reverse">
           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-mac-accent to-amber-700 flex items-center justify-center shadow-sm shrink-0">
@@ -99,7 +99,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       </div>
 
       {/* Right / Left Side Tools */}
-      <div className={`mac-no-drag flex items-center space-x-1.5 space-x-reverse ${isRtl ? 'pl-[78px]' : 'pr-1'}`}>
+      <div className="mac-no-drag flex items-center space-x-1.5 space-x-reverse">
         {/* Accounts management */}
         <button
           onClick={onOpenAccounts}

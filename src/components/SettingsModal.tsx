@@ -444,24 +444,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
 
-            {/* Theme choices */}
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'warm', label: t('settings.themeWarm', 'חם (Warm)'), color: 'bg-[#d97706]' },
-                { id: 'dark', label: t('settings.themeDark', 'כהה (Dark)'), color: 'bg-[#09090b]' },
-                { id: 'light', label: t('settings.themeLight', 'בהיר (Light)'), color: 'bg-[#f0f0f4]' },
-                { id: 'dark-mac', label: 'macOS Dark', color: 'bg-[#007aff]' },
-                { id: 'warm-blue-folders', label: 'Warm + Mac', color: 'bg-gradient-to-b from-amber-500 to-[#007aff]' },
-                { id: 'dark-blue-folders', label: 'Dark + Mac', color: 'bg-gradient-to-b from-zinc-700 to-[#007aff]' },
-              ].map((tItem) => {
-                const isSelected = theme === tItem.id || (tItem.id === 'dark-mac' && theme === 'macos');
-                return (
+            {/* Group 1: Original Amber/Orange Folder Themes */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium">
+                <span className="flex items-center space-x-1.5 space-x-reverse">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                  <span>סדרה 1: מקורי ענבר וזהב (Original Amber / Orange Folders)</span>
+                </span>
+                <span className="text-[10px] text-gray-500">תיקיות והדגשות זהב</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'warm', label: 'חם (Warm)', desc: 'ספיה / ענבר וזהב', color: 'bg-[#d97706]' },
+                  { id: 'dark', label: 'כהה (Dark)', desc: 'שחור ומסגרות ענבר', color: 'bg-[#09090b]' },
+                  { id: 'light', label: 'בהיר (Light)', desc: 'אפור רך וענבר', color: 'bg-[#f5f5f7]' },
+                ].map((tItem) => (
                   <button
                     key={tItem.id}
                     type="button"
                     onClick={() => setTheme(tItem.id as any)}
-                    className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between h-16 ${isRtl ? 'text-right' : 'text-left'} ${
-                      isSelected
+                    className={`p-2.5 rounded-xl border ${isRtl ? 'text-right' : 'text-left'} transition-all flex flex-col justify-between h-20 ${
+                      theme === tItem.id
                         ? 'border-mac-accent bg-mac-accent/10 ring-1 ring-mac-accent/40 text-foreground'
                         : 'border-surface-border bg-surface-muted/60 text-gray-400 hover:text-white hover:bg-surface-muted'
                     }`}
@@ -470,9 +473,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="font-semibold text-xs">{tItem.label}</span>
                       <span className={`w-3.5 h-3.5 rounded-full border border-black/30 shadow-xs ${tItem.color}`} />
                     </div>
+                    <span className="text-[10px] text-gray-400">{tItem.desc}</span>
                   </button>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+
+            {/* Group 2: Full macOS Blue Theme */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium">
+                <span className="flex items-center space-x-1.5 space-x-reverse">
+                  <span className="w-2 h-2 rounded-full bg-[#007aff] inline-block" />
+                  <span>סדרה 2: macOS מלא (Full Mac Theme - Blue Folders & Accents)</span>
+                </span>
+                <span className="text-[10px] text-gray-500">תיקיות + מסגרות כחולות</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'warm-mac', label: 'חם Mac (Warm)', desc: 'ספיה חמימה, הדגשות ותיקיות כחולות', color: 'bg-[#007aff]' },
+                  { id: 'dark-mac', label: 'כהה Mac (Dark)', desc: 'שחור, הדגשות ותיקיות כחולות', color: 'bg-[#007aff]' },
+                  { id: 'light-mac', label: 'בהיר Mac (Light)', desc: 'אפור רך, הדגשות ותיקיות כחולות', color: 'bg-[#007aff]' },
+                ].map((tItem) => {
+                  const isSelected = theme === tItem.id || (tItem.id === 'dark-mac' && theme === 'macos');
+                  return (
+                    <button
+                      key={tItem.id}
+                      type="button"
+                      onClick={() => setTheme(tItem.id as any)}
+                      className={`p-2.5 rounded-xl border ${isRtl ? 'text-right' : 'text-left'} transition-all flex flex-col justify-between h-20 ${
+                        isSelected
+                          ? 'border-mac-accent bg-mac-accent/10 ring-1 ring-mac-accent/40 text-foreground'
+                          : 'border-surface-border bg-surface-muted/60 text-gray-400 hover:text-white hover:bg-surface-muted'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-semibold text-xs">{tItem.label}</span>
+                        <span className={`w-3.5 h-3.5 rounded-full border border-black/30 shadow-xs ${tItem.color}`} />
+                      </div>
+                      <span className="text-[10px] text-gray-400">{tItem.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Group 3: Hybrid macOS Folder Set (Standard UI frames, only folders blue) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium">
+                <span className="flex items-center space-x-1.5 space-x-reverse">
+                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-blue-500 inline-block" />
+                  <span>סדרה 3: משולב (Hybrid - Standard UI + macOS Blue Folders)</span>
+                </span>
+                <span className="text-[10px] text-gray-500">רק התיקיות כחולות</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'warm-blue-folders', label: 'חם + תיקיות Mac', desc: 'מסגרות ענבר מקוריות עם תיקיות כחולות', color: 'bg-gradient-to-b from-amber-500 to-[#007aff]' },
+                  { id: 'dark-blue-folders', label: 'כהה + תיקיות Mac', desc: 'מסגרות כהות מקוריות עם תיקיות כחולות', color: 'bg-gradient-to-b from-zinc-700 to-[#007aff]' },
+                  { id: 'light-blue-folders', label: 'בהיר + תיקיות Mac', desc: 'מסגרות בהירות מקוריות עם תיקיות כחולות', color: 'bg-gradient-to-b from-slate-300 to-[#007aff]' },
+                ].map((tItem) => (
+                  <button
+                    key={tItem.id}
+                    type="button"
+                    onClick={() => setTheme(tItem.id as any)}
+                    className={`p-2.5 rounded-xl border ${isRtl ? 'text-right' : 'text-left'} transition-all flex flex-col justify-between h-20 ${
+                      theme === tItem.id
+                        ? 'border-mac-accent bg-mac-accent/10 ring-1 ring-mac-accent/40 text-foreground'
+                        : 'border-surface-border bg-surface-muted/60 text-gray-400 hover:text-white hover:bg-surface-muted'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-semibold text-xs">{tItem.label}</span>
+                      <span className={`w-3.5 h-3.5 rounded-full border border-black/30 shadow-xs ${tItem.color}`} />
+                    </div>
+                    <span className="text-[10px] text-gray-400">{tItem.desc}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Custom Color Pickers */}
