@@ -24,8 +24,10 @@
     "appId": "com.reclone.pro",
     "productName": "Reclone Pro",
     "copyright": "Copyright © 2026 Reclone Pro",
+    "artifactName": "Reclone-Pro-${version}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.utilities",
+      "artifactName": "Reclone-Pro-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "dir",
@@ -50,17 +52,20 @@
     "win": {
       "target": ["nsis"],
       "forceCodeSigning": false,
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.png",
+      "artifactName": "Reclone-Pro-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "artifactName": "Reclone-Pro-Setup-${version}.${ext}"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Utility",
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.png",
+      "artifactName": "Reclone-Pro-${version}-${arch}.${ext}"
     },
     "directories": {
       "output": "release"

@@ -60,6 +60,7 @@ jobs:
           path: |
             release/*.dmg
             release/*-mac.zip
+            release/*.zip
             release/*.exe
             release/*.AppImage
             release/*.deb
@@ -84,6 +85,8 @@ jobs:
           files: artifacts/*
           fail_on_unmatched_files: false
           overwrite: true
+          draft: false
+          prerelease: false
           make_latest: true
           tag_name: ${{ github.ref_name }}
           name: Reclone Pro ${{ github.ref_name }}
