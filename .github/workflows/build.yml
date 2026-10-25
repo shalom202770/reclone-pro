@@ -93,11 +93,11 @@ jobs:
           body: |
             ### Reclone Pro Release ${{ github.ref_name }}
 
-            - Fixed cloud-to-local downloads and folder transfers across all operating systems.
-            - Enabled native folder zipping/archiving directly within remote cloud storages (Google Drive, OneDrive, etc.).
-            - Added in-app "Check for Updates" feature with instant notifications and download links.
-            - Added persistent View Mode (Grid/List) and UI Theme settings across app restarts.
-            - Automated Windows Rclone setup and macOS Gatekeeper bypass guidance.
+            - **Desktop Notifications for Tasks**: Native OS desktop notifications on task completion (file transfers, cloud-to-local downloads, folder zipping, duplicate scans, and batch renames).
+            - **Multi-Account Management & Union Remotes (GUI)**: Dedicated interface for linking multiple cloud accounts (e.g., multiple Google Drives) and an intuitive wizard to combine them into unified virtual volumes using Rclone's `union` backend with customizable storage policies (`mfs`, `lus`, `ff`, `all`).
+            - **Artifact Naming Fix**: Clean hyphen-separated artifact filenames without spaces for reliable releases and automatic updates.
+            - **Cloud Zipping & Path Handling**: Robust remote-to-local path handling and remote folder zipping across all operating systems.
+            - **Automated Windows Setup**: Seamless automatic download and extraction of `rclone.exe` on Windows systems.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

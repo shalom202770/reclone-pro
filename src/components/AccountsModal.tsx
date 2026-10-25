@@ -13,7 +13,10 @@ import {
   FileText, 
   ExternalLink,
   PieChart,
-  Server
+  Server,
+  Layers,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import type { RemoteInfo, RemoteStorageInfo } from '../types';
 import { formatBytes } from '../lib/utils';
@@ -45,7 +48,7 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
   onRefreshRemotes,
   onSelectRemote,
 }) => {
-  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'config'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'union' | 'config'>('list');
   const [storages, setStorages] = useState<Record<string, RemoteStorageInfo>>({});
   const [loadingStorage, setLoadingStorage] = useState<Record<string, boolean>>({});
   const [configContent, setConfigContent] = useState('');
@@ -57,6 +60,14 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
   const [remoteParams, setRemoteParams] = useState<Record<string, string>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Union remote wizard state
+  const [unionName, setUnionName] = useState('');
+  const [selectedUpstreams, setSelectedUpstreams] = useState<string[]>([]);
+  const [unionPolicy, setUnionPolicy] = useState<'mfs' | 'lus' | 'ff' | 'all'>('mfs');
+  const [isCreatingUnion, setIsCreatingUnion] = useState(false);
+  const [unionError, setUnionError] = useState<string | null>(null);
+  const [unionSuccess, setUnionSuccess] = useState<string | null>(null);
 
   // Load storage meters when modal opens
   useEffect(() => {
@@ -118,6 +129,64 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
     }
   };
 
+  const handleCreateUnion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = unionName.trim().replace(/\s+/g, '_');
+    if (!cleanName) {
+      setUnionError('נא להזין שם עבור הכונן המאוחד');
+      return;
+    }
+    if (selectedUpstreams.length < 2) {
+      setUnionError('נא לבחור לפחות 2 חשבונות ענן לאיחוד');
+      return;
+    }
+
+    setIsCreatingUnion(true);
+    setUnionError(null);
+    setUnionSuccess(null);
+
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.createUnionRemote(cleanName, selectedUpstreams, unionPolicy);
+        setUnionSuccess(`הכונן המאוחד "${cleanName}" נוצר בהצלחה!`);
+        onRefreshRemotes();
+        setTimeout(() => {
+          setActiveTab('list');
+          onSelectRemote(cleanName);
+          setUnionName('');
+          setSelectedUpstreams([]);
+          setUnionSuccess(null);
+        }, 1200);
+      }
+    } catch (err: any) {
+      setUnionError(err?.message || 'שגיאה ביצירת כונן האיחוד');
+    } finally {
+      setIsCreatingUnion(false);
+    }
+  };
+
+  const toggleUpstream = (remoteName: string) => {
+    setSelectedUpstreams((prev) =>
+      prev.includes(remoteName) ? prev.filter((r) => r !== remoteName) : [...prev, remoteName]
+    );
+  };
+
+  const availableCloudRemotes = remotes.filter((r) => !r.isLocal && !r.isUnion && r.type !== 'union');
+
+  const combinedStats = selectedUpstreams.reduce(
+    (acc, name) => {
+      const s = storages[name];
+      if (s && s.total > 0) {
+        acc.total += s.total;
+        acc.used += s.used;
+        acc.free += s.free;
+        acc.known++;
+      }
+      return acc;
+    },
+    { total: 0, used: 0, free: 0, known: 0 }
+  );
+
   const handleDeleteRemote = async (name: string) => {
     if (name === 'Local Mac') return;
     if (confirm(`האם אתה בטוח שברצונך למחוק את החשבון "${name}"?`)) {
@@ -165,6 +234,15 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
               <span>הוספת חשבון</span>
             </button>
             <button
+              onClick={() => setActiveTab('union')}
+              className={`px-3 py-1 rounded-md transition-all font-medium flex items-center space-x-1.5 space-x-reverse ${
+                activeTab === 'union' ? 'bg-purple-600 text-white shadow-sm' : 'text-purple-300 hover:text-white hover:bg-purple-500/10'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>איחוד כוננים (Union)</span>
+            </button>
+            <button
               onClick={() => setActiveTab('config')}
               className={`px-3 py-1 rounded-md transition-all font-medium ${
                 activeTab === 'config' ? 'bg-mac-accent text-white shadow-sm' : 'text-gray-400 hover:text-white'
@@ -185,6 +263,19 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
         {/* Tab 1: Remotes List with Storage Meters */}
         {activeTab === 'list' && (
           <div className="p-5 flex-1 overflow-y-auto space-y-3">
+            {/* Quick Union Wizard Banner */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('union')}
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-purple-500/15 via-indigo-500/10 to-blue-500/15 border border-purple-500/30 hover:border-purple-500/50 flex items-center justify-between text-xs text-purple-200 transition-all cursor-pointer shadow-sm"
+            >
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <Layers className="w-4 h-4 text-purple-400" />
+                <span className="font-semibold">אשף איחוד כוננים (Union Wizard) — שלב מספר חשבונות לנפח אחד ענק</span>
+              </div>
+              <span className="text-[11px] bg-purple-500/25 px-2 py-0.5 rounded text-purple-100 font-medium">פתח אשף ✨</span>
+            </button>
+
             <div className="flex items-center justify-between text-xs text-gray-400 pb-1">
               <span>{remotes.length} חשבונות מחוברים</span>
               <button
@@ -201,30 +292,47 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
               const isLoading = loadingStorage[remote.name];
               const hasStorage = storage && storage.total > 0;
               const usedPct = hasStorage ? Math.round((storage.used / storage.total) * 100) : 0;
+              const isUnion = remote.isUnion || remote.type === 'union';
 
               return (
                 <div
                   key={remote.name}
-                  className="p-3.5 rounded-xl bg-surface-muted/90 border border-surface-border flex flex-col gap-2.5 hover:border-gray-600 transition-colors"
+                  className={`p-3.5 rounded-xl border flex flex-col gap-2.5 transition-colors ${
+                    isUnion
+                      ? 'bg-purple-950/20 border-purple-500/30 hover:border-purple-500/50'
+                      : 'bg-surface-muted/90 border-surface-border hover:border-gray-600'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="w-8 h-8 rounded-lg bg-surface border border-surface-border flex items-center justify-center">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        remote.isLocal
+                          ? 'bg-cyan-500/15 border border-cyan-500/30 text-mac-cyan'
+                          : isUnion
+                          ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400'
+                          : 'bg-surface border border-surface-border text-mac-accent'
+                      }`}>
                         {remote.isLocal ? (
-                          <HardDrive className="w-4 h-4 text-mac-cyan" />
+                          <HardDrive className="w-4 h-4" />
+                        ) : isUnion ? (
+                          <Layers className="w-4 h-4" />
                         ) : (
-                          <Cloud className="w-4 h-4 text-mac-accent" />
+                          <Cloud className="w-4 h-4" />
                         )}
                       </div>
                       <div>
                         <div className="flex items-center space-x-2 space-x-reverse">
                           <span className="font-semibold text-xs text-foreground">{remote.name}</span>
-                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-surface border border-surface-border text-gray-400">
-                            {remote.isLocal ? 'דיסק מקומי' : remote.type}
+                          <span className={`text-[10px] uppercase font-mono px-1.5 py-0.2 rounded border ${
+                            isUnion
+                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 font-bold'
+                              : 'bg-surface border border-surface-border text-gray-400'
+                          }`}>
+                            {remote.isLocal ? 'דיסק מקומי' : isUnion ? 'איחוד וירטואלי (UNION)' : remote.type}
                           </span>
                         </div>
                         <span className="text-[11px] text-gray-500 font-mono">
-                          {remote.isLocal ? 'macOS FileSystem' : `${remote.name}:`}
+                          {remote.isLocal ? 'Local FileSystem' : `${remote.name}:`}
                         </span>
                       </div>
                     </div>
@@ -439,7 +547,204 @@ export const AccountsModal: React.FC<AccountsModalProps> = ({
           </form>
         )}
 
-        {/* Tab 3: Direct rclone.conf Viewer / Editor */}
+        {/* Tab 3: Union Remotes Wizard (Combine Multiple Cloud Accounts) */}
+        {activeTab === 'union' && (
+          <form onSubmit={handleCreateUnion} className="p-5 flex-1 overflow-y-auto space-y-4">
+            {/* Header info */}
+            <div className="p-3.5 rounded-xl bg-gradient-to-br from-purple-500/15 via-indigo-500/10 to-transparent border border-purple-500/30 flex items-start space-x-3 space-x-reverse text-xs">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-sm text-purple-200">איחוד חשבונות ענן לכונן וירטואלי יחיד (Union Virtual Volume)</h3>
+                <p className="text-[11px] text-gray-300 leading-relaxed">
+                  שלב שניים או יותר חשבונות Google Drive (או שירותי ענן שונים) לכונן וירטואלי יחיד בעל נפח מאוחד ענק. Rclone ינהל את חלוקת הקבצים בין החשבונות באופן שקוף לחלוטין!
+                </p>
+              </div>
+            </div>
+
+            {unionError && (
+              <div className="p-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-xs text-red-400 flex items-center space-x-2 space-x-reverse">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{unionError}</span>
+              </div>
+            )}
+
+            {unionSuccess && (
+              <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-xs text-emerald-400 flex items-center space-x-2 space-x-reverse">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{unionSuccess}</span>
+              </div>
+            )}
+
+            {/* Step 1: Remote Name */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>1. שם לכונן המאוחד (באנגלית, ללא רווחים)</span>
+                <span className="text-[10px] text-gray-500 font-normal">למשל: google_union או cloud_pool</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="למשל: all_drives או unified_pool"
+                value={unionName}
+                onChange={(e) => setUnionName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '_'))}
+                className="w-full px-3 py-2 text-xs font-mono rounded-lg bg-surface-muted border border-surface-border text-foreground focus:border-purple-500 transition-colors"
+              />
+            </div>
+
+            {/* Step 2: Select Upstream Remotes */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>2. בחר חשבונות ענן לאיחוד (לפחות 2)</span>
+                <span className="text-[10px] text-purple-300 font-semibold">
+                  נבחרו {selectedUpstreams.length} מתוך {availableCloudRemotes.length}
+                </span>
+              </label>
+
+              {availableCloudRemotes.length < 2 ? (
+                <div className="p-4 rounded-xl bg-surface-muted border border-surface-border text-center space-y-2">
+                  <p className="text-xs text-gray-400">
+                    נמצאו פחות מ-2 חשבונות ענן מוגדרים. כדי ליצור כונן איחוד, יש לחבר קודם לפחות שני חשבונות (למשל שני חשבונות Google Drive).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('add')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-mac-accent text-white"
+                  >
+                    חבר חשבון נוסף עכשיו
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-1">
+                  {availableCloudRemotes.map((remote) => {
+                    const isSelected = selectedUpstreams.includes(remote.name);
+                    const storage = storages[remote.name];
+                    return (
+                      <div
+                        key={remote.name}
+                        onClick={() => toggleUpstream(remote.name)}
+                        className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between transition-all select-none ${
+                          isSelected
+                            ? 'bg-purple-500/20 border-purple-500 text-white font-medium shadow-xs'
+                            : 'bg-surface-muted border-surface-border text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5 space-x-reverse truncate">
+                          <div className={`w-4 h-4 rounded flex items-center justify-center border ${
+                            isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'border-gray-500 bg-surface'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <Cloud className={`w-4 h-4 shrink-0 ${isSelected ? 'text-purple-400' : 'text-gray-400'}`} />
+                          <div className="truncate">
+                            <span className="text-xs truncate block">{remote.name}</span>
+                            <span className="text-[10px] text-gray-500 uppercase font-mono">{remote.type}</span>
+                          </div>
+                        </div>
+
+                        {storage && storage.total > 0 && (
+                          <div className="text-[10px] text-gray-400 font-mono text-left shrink-0">
+                            <span>{formatBytes(storage.free)} פנוי</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Combined Storage Preview Badge */}
+              {selectedUpstreams.length >= 2 && combinedStats.total > 0 && (
+                <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2 space-x-reverse text-purple-300">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span className="font-semibold">נפח כולל מאוחד מחושב:</span>
+                  </div>
+                  <div className="font-mono text-xs text-foreground flex items-center space-x-2 space-x-reverse">
+                    <span className="text-emerald-400 font-bold">{formatBytes(combinedStats.free)} פנוי</span>
+                    <span className="text-gray-500">/</span>
+                    <span>{formatBytes(combinedStats.total)} סה״כ</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 3: Allocation Policy */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground block">
+                3. מדיניות הקצאת ושמירת קבצים חדשים (Create Policy)
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div
+                  onClick={() => setUnionPolicy('mfs')}
+                  className={`p-2.5 rounded-xl border cursor-pointer space-y-1 transition-all ${
+                    unionPolicy === 'mfs'
+                      ? 'bg-purple-500/20 border-purple-500 text-white font-medium'
+                      : 'bg-surface-muted border-surface-border text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-purple-300">שטח פנוי מרבי (MFS)</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/30 text-purple-200">מומלץ</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">קבצים חדשים יישמרו אוטומטית בחשבון עם הכי הרבה שטח פנוי</p>
+                </div>
+
+                <div
+                  onClick={() => setUnionPolicy('lus')}
+                  className={`p-2.5 rounded-xl border cursor-pointer space-y-1 transition-all ${
+                    unionPolicy === 'lus'
+                      ? 'bg-purple-500/20 border-purple-500 text-white font-medium'
+                      : 'bg-surface-muted border-surface-border text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <span className="font-semibold text-purple-300">אחוז תפוסה מינימלי (LUS)</span>
+                  <p className="text-[10px] text-gray-400">קבצים יישמרו בחשבון בעל אחוז הניצולת הנמוך ביותר</p>
+                </div>
+
+                <div
+                  onClick={() => setUnionPolicy('ff')}
+                  className={`p-2.5 rounded-xl border cursor-pointer space-y-1 transition-all ${
+                    unionPolicy === 'ff'
+                      ? 'bg-purple-500/20 border-purple-500 text-white font-medium'
+                      : 'bg-surface-muted border-surface-border text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <span className="font-semibold text-purple-300">סדר כרונולוגי (First Found)</span>
+                  <p className="text-[10px] text-gray-400">קבצים יישמרו בחשבון הראשון עד שיתמלא, ורק אז יעברו לבא</p>
+                </div>
+
+                <div
+                  onClick={() => setUnionPolicy('all')}
+                  className={`p-2.5 rounded-xl border cursor-pointer space-y-1 transition-all ${
+                    unionPolicy === 'all'
+                      ? 'bg-purple-500/20 border-purple-500 text-white font-medium'
+                      : 'bg-surface-muted border-surface-border text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  <span className="font-semibold text-purple-300">שכפול כפול (Mirror All)</span>
+                  <p className="text-[10px] text-gray-400">כל קובץ חדש יישמר בכל החשבונות במקביל לגיבוי מלא</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={isCreatingUnion || !unionName.trim() || selectedUpstreams.length < 2}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md disabled:opacity-40 transition-all flex items-center space-x-1.5 space-x-reverse"
+              >
+                <Layers className={`w-3.5 h-3.5 ${isCreatingUnion ? 'animate-spin' : ''}`} />
+                <span>{isCreatingUnion ? 'יוצר כונן מאוחד...' : 'צור כונן מאוחד עכשיו ✨'}</span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 4: Direct rclone.conf Viewer / Editor */}
         {activeTab === 'config' && (
           <div className="p-5 flex-1 flex flex-col space-y-3 overflow-hidden">
             <div className="flex items-center justify-between text-xs text-gray-400">

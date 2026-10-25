@@ -736,7 +736,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-mac-accent/10 text-mac-accent border border-mac-accent/20">
-                v1.0.2 Pro
+                v1.0.3 Pro
               </span>
             </div>
 
@@ -774,7 +774,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <span>{t('settings.newVersionAvailable', 'גרסה חדשה זמינה!')} v{updateResult.latestVersion}</span>
                         </div>
                         <p className="text-[11px] text-gray-300">
-                          {t('settings.currentVersionIs', 'הגרסה הנוכחית שלך:')} v1.0.2 Pro
+                          {t('settings.currentVersionIs', 'הגרסה הנוכחית שלך:')} v1.0.3 Pro
                         </p>
                       </div>
                       <button
@@ -795,9 +795,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center justify-between">
                       <div className="flex items-center space-x-1.5 space-x-reverse">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>{t('settings.upToDate', 'אתה משתמש בגרסה העדכנית ביותר! (v1.0.2 Pro)')}</span>
+                        <span>{t('settings.upToDate', 'אתה משתמש בגרסה העדכנית ביותר! (v1.0.3 Pro)')}</span>
                       </div>
-                      <span className="text-[10px] text-gray-400 font-mono">v1.0.2 Pro</span>
+                      <span className="text-[10px] text-gray-400 font-mono">v1.0.3 Pro</span>
                     </div>
                   )}
                 </div>

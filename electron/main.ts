@@ -65,9 +65,24 @@ function createWindow() {
         });
       }
     },
-    (progress) => {
+    (progress: any) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('rclone:transfer-progress', progress);
+      }
+      if (progress.status === 'completed') {
+        if (Notification.isSupported()) {
+          new Notification({
+            title: 'העברת קבצים הושלמה בהצלחה! 🚀',
+            body: progress.taskName ? `העברת "${progress.taskName}" הסתיימה בהצלחה` : 'משימת ההעברה הושלמה בהצלחה',
+          }).show();
+        }
+      } else if (progress.status === 'failed') {
+        if (Notification.isSupported()) {
+          new Notification({
+            title: 'העברת קבצים נכשלה ⚠️',
+            body: progress.taskName ? `העברת "${progress.taskName}" נכשלה: ${progress.error || 'שגיאה'}` : 'משימת ההעברה נכשלה',
+          }).show();
+        }
       }
     },
     (oauthUrl) => {
@@ -215,6 +230,25 @@ ipcMain.handle('rclone:rename-item', async (_event, { remote, oldPath, newPath }
 // Accounts & Config IPC Handlers
 ipcMain.handle('rclone:create-remote', async (_event, { name, type, params }) => {
   return await rclone.createRemote(name, type, params);
+});
+
+ipcMain.handle('rclone:create-union-remote', async (_event, { name, upstreams, policy }: { name: string; upstreams: string[]; policy?: string }) => {
+  const ok = await rclone.createUnionRemote(name, upstreams, policy);
+  if (ok && Notification.isSupported()) {
+    new Notification({
+      title: 'כונן איחוד וירטואלי נוצר בהצלחה! 🌐',
+      body: `הכונן "${name}" מאחד ${upstreams.length} חשבונות ענן`,
+    }).show();
+  }
+  return ok;
+});
+
+ipcMain.handle('app:show-notification', async (_event, { title, body }: { title: string; body: string }) => {
+  if (Notification.isSupported()) {
+    new Notification({ title, body }).show();
+    return true;
+  }
+  return false;
 });
 
 ipcMain.handle('rclone:delete-remote', async (_event, name: string) => {

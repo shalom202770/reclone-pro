@@ -288,19 +288,38 @@ export class RcloneManager {
 
     if (this.isDetected) {
       try {
-        const { stdout } = await execAsync(`"${this.rclonePath}" listremotes`, { env: process.env });
+        const { stdout } = await execAsync(`"${this.rclonePath}" listremotes --long`, { env: process.env });
         const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
         for (const line of lines) {
-          const remoteName = line.replace(/:$/, '');
-          remotes.push({
-            name: remoteName,
-            type: 'cloud',
-            icon: 'cloud',
-            isLocal: false,
-          });
+          const parts = line.split(/\s+/);
+          const remoteName = (parts[0] || '').replace(/:$/, '');
+          const remoteType = parts[1] || 'cloud';
+          if (remoteName) {
+            remotes.push({
+              name: remoteName,
+              type: remoteType,
+              icon: remoteType === 'union' ? 'layers' : 'cloud',
+              isLocal: false,
+              isUnion: remoteType === 'union',
+            });
+          }
         }
-      } catch (err: any) {
-        this.log('error', `שגיאה בקריאת remotes מ-Rclone: ${err?.message || err}`);
+      } catch {
+        try {
+          const { stdout } = await execAsync(`"${this.rclonePath}" listremotes`, { env: process.env });
+          const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+          for (const line of lines) {
+            const remoteName = line.replace(/:$/, '');
+            remotes.push({
+              name: remoteName,
+              type: 'cloud',
+              icon: 'cloud',
+              isLocal: false,
+            });
+          }
+        } catch (err: any) {
+          this.log('error', `שגיאה בקריאת remotes מ-Rclone: ${err?.message || err}`);
+        }
       }
     }
 
@@ -317,7 +336,13 @@ export class RcloneManager {
           const sectionMatch = line.match(/^\[(.*)\]$/);
           if (sectionMatch) {
             if (currentSection && !remotes.some((r) => r.name === currentSection)) {
-              remotes.push({ name: currentSection, type: currentType, isLocal: false });
+              remotes.push({
+                name: currentSection,
+                type: currentType,
+                icon: currentType === 'union' ? 'layers' : 'cloud',
+                isLocal: false,
+                isUnion: currentType === 'union',
+              });
             }
             currentSection = sectionMatch[1];
             currentType = 'cloud';
@@ -326,7 +351,13 @@ export class RcloneManager {
           }
         }
         if (currentSection && !remotes.some((r) => r.name === currentSection)) {
-          remotes.push({ name: currentSection, type: currentType, isLocal: false });
+          remotes.push({
+            name: currentSection,
+            type: currentType,
+            icon: currentType === 'union' ? 'layers' : 'cloud',
+            isLocal: false,
+            isUnion: currentType === 'union',
+          });
         }
       } catch (e: any) {
         this.log('error', `שגיאה בפענוח rclone.conf: ${e.message}`);
@@ -627,6 +658,20 @@ export class RcloneManager {
     return true;
   }
 
+  public async createUnionRemote(name: string, upstreams: string[], policy: string = 'mfs'): Promise<boolean> {
+    const cleanName = name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const formattedUpstreams = upstreams
+      .map((u) => (u.endsWith(':') ? u : `${u}:`))
+      .join(' ');
+
+    return this.createRemote(cleanName, 'union', {
+      upstreams: formattedUpstreams,
+      create_policy: policy,
+      action_policy: 'epall',
+      search_policy: 'ff',
+    });
+  }
+
   public async deleteRemote(name: string): Promise<boolean> {
     this.log('command', `מחיקת חשבון: [${name}]`);
     if (this.isDetected) {
@@ -829,6 +874,7 @@ export class RcloneManager {
         this.log('info', `ההעברה הושלמה בהצלחה: ${task.name}`);
         this.onProgressCallback?.({
           id: task.id,
+          taskName: task.name,
           status: 'completed',
           percentage: 100,
           speed: '0 B/s',
@@ -840,6 +886,7 @@ export class RcloneManager {
         this.log('error', `העברת ${task.name} נכשלה (קוד: ${code})`);
         this.onProgressCallback?.({
           id: task.id,
+          taskName: task.name,
           status: 'failed',
           error: `קוד יציאה ${code}`,
           speed: '0 B/s',
@@ -853,6 +900,7 @@ export class RcloneManager {
       this.log('error', `שגיאת תהליך: ${err.message}`);
       this.onProgressCallback?.({
         id: task.id,
+        taskName: task.name,
         status: 'failed',
         error: err.message,
       });

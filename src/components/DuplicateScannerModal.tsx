@@ -37,6 +37,9 @@ export const DuplicateScannerModal: React.FC<DuplicateScannerModalProps> = ({
         setDuplicateGroups(res.duplicates);
         if (res.duplicates.length === 0) {
           setMessage('מעולה! לא נמצאו קבצים כפולים בתיקייה זו.');
+          window.electronAPI?.showNotification?.('סריקת כפילויות הושלמה! ✨', 'לא נמצאו קבצים כפולים בתיקייה זו');
+        } else {
+          window.electronAPI?.showNotification?.('סריקת כפילויות הושלמה! 🔍', `נמצאו ${res.duplicates.length} קבוצות של קבצים כפולים`);
         }
       } else {
         setMessage(res.error || 'שגיאה בסריקת קבצים כפולים');
@@ -71,6 +74,7 @@ export const DuplicateScannerModal: React.FC<DuplicateScannerModalProps> = ({
       for (const f of selectedToDelete) {
         await window.electronAPI.deleteItem(remote, f, false);
       }
+      window.electronAPI?.showNotification?.('מחיקת כפילויות הושלמה! 🗑️', `${selectedToDelete.size} קבצים כפולים נמחקו בהצלחה`);
       onRefresh();
       handleScan();
     } finally {

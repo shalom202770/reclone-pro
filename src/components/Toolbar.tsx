@@ -19,7 +19,8 @@ import {
   EyeOff,
   Edit2,
   ZoomIn,
-  Copy
+  Copy,
+  Layers
 } from 'lucide-react';
 import type { RemoteInfo, ViewMode } from '../types';
 import { useTranslation } from '../i18n/context';
@@ -128,6 +129,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           >
             {currentRemoteInfo?.isLocal ? (
               <HardDrive className="w-4 h-4 text-mac-cyan" />
+            ) : currentRemoteInfo?.isUnion || currentRemoteInfo?.type === 'union' ? (
+              <Layers className="w-4 h-4 text-purple-400" />
             ) : (
               <Cloud className="w-4 h-4 text-mac-accent" />
             )}
@@ -160,6 +163,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     <div className="flex items-center space-x-2 space-x-reverse truncate">
                       {r.isLocal ? (
                         <HardDrive className="w-4 h-4 text-mac-cyan shrink-0" />
+                      ) : r.isUnion || r.type === 'union' ? (
+                        <Layers className="w-4 h-4 text-purple-400 shrink-0" />
                       ) : (
                         <Cloud className="w-4 h-4 text-mac-accent shrink-0" />
                       )}

@@ -13,6 +13,7 @@ export interface RemoteInfo {
   type: string;
   icon?: string;
   isLocal?: boolean;
+  isUnion?: boolean;
   storage?: RemoteStorageInfo;
 }
 

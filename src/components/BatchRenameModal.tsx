@@ -52,6 +52,7 @@ export const BatchRenameModal: React.FC<BatchRenameModalProps> = ({
     try {
       const validChanges = preview.filter((p) => p.oldPath !== p.newPath);
       await onConfirm(validChanges);
+      window.electronAPI?.showNotification?.('שינוי שמות הושלם! ✏️', `${validChanges.length} קבצים שונו בהצלחה`);
       onClose();
     } finally {
       setIsRenaming(false);

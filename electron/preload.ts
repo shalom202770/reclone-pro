@@ -44,6 +44,12 @@ const api = {
   createRemote: (name: string, type: string, params: Record<string, string>): Promise<boolean> => {
     return ipcRenderer.invoke('rclone:create-remote', { name, type, params });
   },
+  createUnionRemote: (name: string, upstreams: string[], policy?: string): Promise<boolean> => {
+    return ipcRenderer.invoke('rclone:create-union-remote', { name, upstreams, policy });
+  },
+  showNotification: (title: string, body: string): Promise<boolean> => {
+    return ipcRenderer.invoke('app:show-notification', { title, body });
+  },
   deleteRemote: (name: string): Promise<boolean> => {
     return ipcRenderer.invoke('rclone:delete-remote', name);
   },
