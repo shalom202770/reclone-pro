@@ -9,10 +9,11 @@ on:
 
 permissions:
   contents: write
-  releases: write
 
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -50,44 +51,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload macOS artifacts
-        if: matrix.platform == 'mac'
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-installers
+          name: ${{ matrix.platform }}-installers
           path: |
             release/*.dmg
             release/*-mac.zip
-          if-no-files-found: error
-
-      - name: Upload Windows artifacts
-        if: matrix.platform == 'win'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installers
-          path: |
             release/*.exe
-          if-no-files-found: error
-
-      - name: Upload Linux artifacts
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-installers
-          path: |
             release/*.AppImage
             release/*.deb
-          if-no-files-found: error
+          if-no-files-found: ignore
+
+  release:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Upload to GitHub Release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/*.dmg
-            release/*-mac.zip
-            release/*.exe
-            release/*.AppImage
-            release/*.deb
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
