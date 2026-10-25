@@ -2,6 +2,8 @@ import { spawn, exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import https from 'https';
+import extractZip from 'extract-zip';
 import { promisify } from 'util';
 import type { RcloneItem, RemoteInfo, RemoteStorageInfo, TransferTask, TransferSubFile } from '../src/types';
 
@@ -44,7 +46,12 @@ export class RcloneManager {
   private onProgressCallback?: (task: Partial<TransferTask> & { id: string }) => void;
   private onOpenUrlCallback?: (url: string) => void;
 
-  constructor() {
+  private userDataPath: string = '';
+
+  constructor(userDataPath?: string) {
+    if (userDataPath) {
+      this.userDataPath = userDataPath;
+    }
     this.configPath = path.join(os.homedir(), '.config/rclone/rclone.conf');
     this.detectRclonePath();
   }
@@ -65,9 +72,22 @@ export class RcloneManager {
     }
   }
 
+  public setUserDataPath(p: string) {
+    this.userDataPath = p;
+  }
+
   public async detectRclonePath(customPath?: string): Promise<{ detected: boolean; path: string; version: string; configPath: string }> {
+    const isWin = process.platform === 'win32';
+    const localUserExe = this.userDataPath
+      ? path.join(this.userDataPath, 'bin', isWin ? 'rclone.exe' : 'rclone')
+      : '';
+
     const candidatePaths = [
       customPath,
+      localUserExe,
+      isWin ? 'C:\\Program Files\\rclone\\rclone.exe' : '',
+      isWin ? path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'rclone', 'rclone.exe') : '',
+      isWin ? 'rclone.exe' : '',
       '/opt/homebrew/bin/rclone',
       '/usr/local/bin/rclone',
       '/usr/bin/rclone',
@@ -78,7 +98,7 @@ export class RcloneManager {
 
     for (const testPath of candidatePaths) {
       try {
-        if (testPath.startsWith('/') && !fs.existsSync(testPath)) {
+        if ((testPath.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(testPath)) && !fs.existsSync(testPath)) {
           continue;
         }
 
@@ -105,7 +125,7 @@ export class RcloneManager {
     }
 
     this.isDetected = false;
-    this.versionInfo = 'לא מותקן (נדרשת התקנה דרך Homebrew או הגדרת נתיב)';
+    this.versionInfo = isWin ? 'לא מותקן (נדרשת הורדה והגדרה או נתיב ידני)' : 'לא מותקן (נדרשת התקנה דרך Homebrew או הגדרת נתיב)';
     this.log('warn', 'קובץ ההרצה של Rclone לא נמצא במערכת.');
     return { detected: false, path: this.rclonePath, version: this.versionInfo, configPath: this.configPath };
   }
@@ -145,6 +165,104 @@ export class RcloneManager {
     } catch (err: any) {
       this.log('error', `שגיאה בהתקנת Homebrew: ${err?.message || err}`);
       return { success: false, message: err?.message || 'ההתקנה נכשלה' };
+    }
+  }
+
+  public async installForWindows(): Promise<{ success: boolean; message: string; path?: string }> {
+    if (!this.userDataPath) {
+      return { success: false, message: 'userDataPath לא הוגדר באפליקציה' };
+    }
+
+    const arch = os.arch() === 'arm64' ? 'arm64' : (os.arch() === 'ia32' ? '386' : 'amd64');
+    const downloadUrl = `https://downloads.rclone.org/rclone-current-windows-${arch}.zip`;
+    const binDir = path.join(this.userDataPath, 'bin');
+    const tempZip = path.join(this.userDataPath, 'rclone-download.zip');
+    const tempExtractDir = path.join(this.userDataPath, 'rclone-temp-extract');
+
+    this.log('command', `הורדת Rclone עבור Windows מ: ${downloadUrl}`);
+
+    try {
+      if (!fs.existsSync(binDir)) {
+        fs.mkdirSync(binDir, { recursive: true });
+      }
+
+      // Download file with redirect handling
+      await new Promise<void>((resolve, reject) => {
+        const downloadFile = (url: string) => {
+          https.get(url, (res) => {
+            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              downloadFile(res.headers.location);
+              return;
+            }
+            if (res.statusCode !== 200) {
+              reject(new Error(`Download failed with HTTP ${res.statusCode}`));
+              return;
+            }
+            const fileStream = fs.createWriteStream(tempZip);
+            res.pipe(fileStream);
+            fileStream.on('finish', () => {
+              fileStream.close(() => resolve());
+            });
+            fileStream.on('error', reject);
+          }).on('error', reject);
+        };
+        downloadFile(downloadUrl);
+      });
+
+      this.log('info', 'הורדת הקובץ הושלמה. מחלץ את rclone.exe...');
+
+      if (fs.existsSync(tempExtractDir)) {
+        fs.rmSync(tempExtractDir, { recursive: true, force: true });
+      }
+      fs.mkdirSync(tempExtractDir, { recursive: true });
+
+      await extractZip(tempZip, { dir: path.resolve(tempExtractDir) });
+
+      // Locate rclone.exe in extracted folder
+      let foundExePath = '';
+      const findExe = (dir: string) => {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          const fullPath = path.join(dir, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            findExe(fullPath);
+          } else if (file.toLowerCase() === 'rclone.exe') {
+            foundExePath = fullPath;
+            return;
+          }
+        }
+      };
+      findExe(tempExtractDir);
+
+      if (!foundExePath) {
+        throw new Error('rclone.exe לא נמצא בתוך קובץ ה-ZIP שהורד');
+      }
+
+      const targetExePath = path.join(binDir, 'rclone.exe');
+      if (fs.existsSync(targetExePath)) {
+        try { fs.unlinkSync(targetExePath); } catch {}
+      }
+      fs.copyFileSync(foundExePath, targetExePath);
+
+      // Clean up temporary files
+      try { fs.unlinkSync(tempZip); } catch {}
+      try { fs.rmSync(tempExtractDir, { recursive: true, force: true }); } catch {}
+
+      // Re-detect with the new executable
+      const detectResult = await this.detectRclonePath(targetExePath);
+      this.log('info', `Rclone הוגדר והופעל בהצלחה בנתיב: ${targetExePath}`);
+
+      return {
+        success: detectResult.detected,
+        message: detectResult.detected ? 'Rclone הורד והוגדר בהצלחה!' : 'הקובץ חולץ אך לא הופעל',
+        path: targetExePath,
+      };
+    } catch (err: any) {
+      this.log('error', `שגיאה בהורדת והגדרת Rclone עבור Windows: ${err?.message || err}`);
+      try { if (fs.existsSync(tempZip)) fs.unlinkSync(tempZip); } catch {}
+      try { if (fs.existsSync(tempExtractDir)) fs.rmSync(tempExtractDir, { recursive: true, force: true }); } catch {}
+      return { success: false, message: err?.message || 'ההורדה או החילוץ נכשלו' };
     }
   }
 

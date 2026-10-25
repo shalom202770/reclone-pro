@@ -233,6 +233,10 @@ ipcMain.handle('rclone:install-homebrew', async () => {
   return await rclone.installViaHomebrew();
 });
 
+ipcMain.handle('rclone:install-windows', async () => {
+  return await rclone.installForWindows();
+});
+
 // Transfers IPC Handlers
 ipcMain.handle('rclone:start-transfer', async (_event, { task, settings }) => {
   rclone.startTransfer(task as TransferTask, settings);
@@ -782,6 +786,11 @@ ipcMain.handle('rclone:get-thumbnail-url', async (_event, { remote, filePath, fi
 });
 
 app.whenReady().then(() => {
+  try {
+    rclone.setUserDataPath(app.getPath('userData'));
+    rclone.detectRclonePath();
+  } catch {}
+
   // Register protocol handler for local file access with safe URL conversion
   protocol.handle('local-resource', (request) => {
     const raw = request.url.replace('local-resource://', '');

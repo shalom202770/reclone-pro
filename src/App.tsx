@@ -914,6 +914,12 @@ export const App: React.FC = () => {
           }
           return { success: false, message: 'API אינו זמין' };
         }}
+        onInstallWindows={async () => {
+          if (window.electronAPI) {
+            return await window.electronAPI.installForWindows();
+          }
+          return { success: false, message: 'API אינו זמין' };
+        }}
       />
 
       {/* 9. New Folder Modal */}

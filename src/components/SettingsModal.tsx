@@ -32,6 +32,7 @@ interface SettingsModalProps {
   onSave: (newSettings: Partial<AppSettings>) => void;
   onDetectRclone: (path?: string) => Promise<{ detected: boolean; path: string; version: string; configPath: string }>;
   onInstallHomebrew?: () => Promise<{ success: boolean; message: string }>;
+  onInstallWindows?: () => Promise<{ success: boolean; message: string; path?: string }>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,6 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave,
   onDetectRclone,
   onInstallHomebrew,
+  onInstallWindows,
 }) => {
   const { t, language, setLanguage, font, setFont, dir, isRtl } = useTranslation();
 
@@ -111,6 +113,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setInstallMsg(res.message);
       if (res.success) {
         handleDetect();
+      }
+    } catch (e: any) {
+      setInstallMsg(`Error: ${e.message}`);
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
+  const handleWindowsInstall = async () => {
+    if (!onInstallWindows) return;
+    setIsInstalling(true);
+    setInstallMsg(t('settings.winInstalling', 'מוריד ומגדיר את Rclone ברקע...'));
+    try {
+      const res = await onInstallWindows();
+      setInstallMsg(res.message);
+      if (res.success) {
+        if (res.path) setRclonePath(res.path);
+        handleDetect(res.path);
       }
     } catch (e: any) {
       setInstallMsg(`Error: ${e.message}`);
@@ -251,7 +271,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={rclonePath}
                 onChange={(e) => setRclonePath(e.target.value)}
-                placeholder="/opt/homebrew/bin/rclone / rclone"
+                placeholder={window.electronAPI?.isWindows ? 'C:\\...\\rclone.exe / rclone' : '/opt/homebrew/bin/rclone / rclone'}
                 dir="ltr"
                 className="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg bg-surface-muted border border-surface-border text-foreground focus:border-mac-accent"
               />
@@ -265,31 +285,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
 
-            {/* Homebrew install button if missing */}
+            {/* Install / Download button if missing */}
             {!settings.rcloneDetected && (
               <div className="p-3 rounded-xl bg-surface-muted border border-surface-border space-y-2">
-                <div className="flex items-start space-x-2.5 space-x-reverse text-xs text-gray-300">
-                  <Info className="w-4 h-4 text-mac-accent shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-foreground">{t('settings.brewNotice', 'Rclone אינו מותקן במחשב שלך')}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {t('settings.brewDesc', 'ניתן להתקין אותו בלחיצה אחת באמצעות מנהל החבילות Homebrew.')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 space-x-reverse pt-1">
-                  <button
-                    type="button"
-                    onClick={handleBrewInstall}
-                    disabled={isInstalling}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent hover:bg-mac-accentHover text-white shadow-sm transition-colors"
-                  >
-                    {isInstalling ? t('settings.brewInstalling', 'מתקין כעת...') : t('settings.brewInstall', 'התקן עכשיו דרך Homebrew')}
-                  </button>
-                  {installMsg && (
-                    <span className="text-[11px] text-gray-300 font-mono truncate">{installMsg}</span>
-                  )}
-                </div>
+                {window.electronAPI?.isWindows ? (
+                  <>
+                    <div className="flex items-start space-x-2.5 space-x-reverse text-xs text-gray-300">
+                      <Info className="w-4 h-4 text-mac-accent shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-foreground">{t('settings.winNotice', 'Rclone אינו מוגדר במחשב שלך')}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {t('settings.winDesc', 'ניתן להוריד ולהגדיר את Rclone הנייד הרשמי עבור Windows בלחיצה אחת.')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse pt-1">
+                      <button
+                        type="button"
+                        onClick={handleWindowsInstall}
+                        disabled={isInstalling}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent hover:bg-mac-accentHover text-white shadow-sm transition-colors"
+                      >
+                        {isInstalling ? t('settings.winInstalling', 'מוריד ומגדיר את Rclone ברקע...') : t('settings.winInstall', 'הורד והגדר את Rclone (Windows)')}
+                      </button>
+                      {installMsg && (
+                        <span className="text-[11px] text-gray-300 font-mono truncate">{installMsg}</span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start space-x-2.5 space-x-reverse text-xs text-gray-300">
+                      <Info className="w-4 h-4 text-mac-accent shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-foreground">{t('settings.brewNotice', 'Rclone אינו מותקן במחשב שלך')}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {t('settings.brewDesc', 'ניתן להתקין אותו בלחיצה אחת באמצעות מנהל החבילות Homebrew.')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse pt-1">
+                      <button
+                        type="button"
+                        onClick={handleBrewInstall}
+                        disabled={isInstalling}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent hover:bg-mac-accentHover text-white shadow-sm transition-colors"
+                      >
+                        {isInstalling ? t('settings.brewInstalling', 'מתקין כעת...') : t('settings.brewInstall', 'התקן עכשיו דרך Homebrew')}
+                      </button>
+                      {installMsg && (
+                        <span className="text-[11px] text-gray-300 font-mono truncate">{installMsg}</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

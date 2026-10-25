@@ -3,6 +3,8 @@ import type { RemoteInfo, RcloneItem, TransferTask, AppSettings, LogEntry, Remot
 
 const api = {
   isMac: process.platform === 'darwin',
+  isWindows: process.platform === 'win32',
+  platform: process.platform,
 
   // Window Controls
   windowMinimize: () => {
@@ -53,6 +55,9 @@ const api = {
   },
   installViaHomebrew: (): Promise<{ success: boolean; message: string }> => {
     return ipcRenderer.invoke('rclone:install-homebrew');
+  },
+  installForWindows: (): Promise<{ success: boolean; message: string; path?: string }> => {
+    return ipcRenderer.invoke('rclone:install-windows');
   },
 
   // Transfers
