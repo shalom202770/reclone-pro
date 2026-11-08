@@ -216,6 +216,22 @@ ipcMain.handle('rclone:get-storage-usage', async (_event, remote: string) => {
   return await rclone.getStorageUsage(remote);
 });
 
+ipcMain.handle('rclone:get-share-link', async (_event, { remote, filePath }: { remote: string; filePath: string }) => {
+  if (!remote || rclone.isLocalRemote(remote)) return { success: false, error: 'Public links are only available for cloud remotes.' };
+  if (!rclone.getRcloneInfo().rcloneDetected) return { success: false, error: 'Rclone is not available.' };
+  const cloudPath = `${remote}:${rclone.cleanCloudPath(filePath)}`;
+  return new Promise((resolve) => {
+    execFile(rclone.getRclonePath(), ['link', cloudPath], { timeout: 30000 }, (err, stdout, stderr) => {
+      const url = String(stdout || '').trim().split(/\r?\n/).pop()?.trim();
+      if (err || !url || !/^https?:\/\//i.test(url)) {
+        resolve({ success: false, error: String(stderr || err?.message || 'Could not create a public link.').trim() });
+      } else {
+        resolve({ success: true, url });
+      }
+    });
+  });
+});
+
 ipcMain.handle('rclone:create-folder', async (_event, { remote, path: dirPath, folderName }) => {
   return await rclone.createDirectory(remote, dirPath, folderName);
 });

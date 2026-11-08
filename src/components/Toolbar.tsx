@@ -421,11 +421,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         {/* View mode toggle */}
-        <div className="flex items-center bg-surface p-0.5 rounded-md border border-surface-border shrink-0">
+        <div className="flex items-center gap-0.5 bg-surface p-1 rounded-lg border border-surface-border shrink-0">
           <button
             onClick={() => onToggleViewMode('list')}
             title={t('toolbar.listView', 'תצוגת טבלה מפורטת')}
-            className={`p-1 rounded cursor-pointer ${
+            className={`inline-flex w-8 h-7 items-center justify-center rounded-md cursor-pointer transition-colors ${
               viewMode === 'list'
                 ? 'bg-mac-accent text-white shadow-sm'
                 : 'text-gray-400 hover:text-white'
@@ -436,7 +436,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <button
             onClick={() => onToggleViewMode('grid')}
             title={t('toolbar.gridView', 'תצוגת רשת כרטיסים')}
-            className={`p-1 rounded cursor-pointer ${
+            className={`inline-flex w-8 h-7 items-center justify-center rounded-md cursor-pointer transition-colors ${
               viewMode === 'grid'
                 ? 'bg-mac-accent text-white shadow-sm'
                 : 'text-gray-400 hover:text-white'

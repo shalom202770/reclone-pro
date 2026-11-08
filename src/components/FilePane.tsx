@@ -13,7 +13,8 @@ import {
   ArrowDown, 
   FolderOpen,
   X as XIcon,
-  UploadCloud
+  UploadCloud,
+  Link2,
 } from 'lucide-react';
 import type { RcloneItem, ViewMode, SortField, SortOrder } from '../types';
 import { formatBytes, formatDate, getFileCategory } from '../lib/utils';
@@ -142,6 +143,21 @@ export const FilePane: React.FC<FilePaneProps> = ({
     const res = await window.electronAPI.archiveCompress(item.Path, outPath, remote);
     if (res?.success && onRefresh) {
       onRefresh();
+    }
+  };
+
+  const handleShareLink = async (item: RcloneItem) => {
+    try {
+      const result = await window.electronAPI?.getShareLink(remote, item.Path);
+      if (!result?.success || !result.url) throw new Error(result?.error || t('filePane.shareLinkFailed', 'Could not create a public link.'));
+      try {
+        await navigator.clipboard.writeText(result.url);
+        window.electronAPI?.showNotification(t('filePane.shareLink', 'Public link'), t('filePane.linkCopied', 'Link copied to clipboard'));
+      } catch {
+        window.prompt(t('filePane.copyLinkPrompt', 'Copy public link'), result.url);
+      }
+    } catch (error: any) {
+      window.alert(error?.message || t('filePane.shareLinkFailed', 'Could not create a public link.'));
     }
   };
 
@@ -465,22 +481,20 @@ export const FilePane: React.FC<FilePaneProps> = ({
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className="absolute inset-0 bg-surface/75 backdrop-blur-xs flex flex-col p-4 space-y-3 z-20">
+        <div className="absolute inset-x-0 top-0 bottom-6 bg-surface flex flex-col p-4 z-20">
           <div className="flex items-center space-x-2 space-x-reverse text-xs text-gray-400 mb-2">
             <div className="w-3.5 h-3.5 border-2 border-mac-accent border-t-transparent rounded-full animate-spin" />
             <span>{t('filePane.loadingFiles', 'סורק קבצים ותיקיות ב-')} {remote}...</span>
           </div>
-          {[...Array(9)].map((_, i) => (
-            <div
-              key={i}
-              className="h-8 rounded bg-surface-muted animate-pulse flex items-center px-3 space-x-4 space-x-reverse"
-            >
-              <div className="w-4 h-4 bg-surface-border rounded" />
-              <div className="h-3 w-48 bg-surface-border rounded" />
-              <div className="h-3 w-16 bg-surface-border rounded mr-auto" />
-              <div className="h-3 w-28 bg-surface-border rounded" />
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 overflow-hidden">
+              {[...Array(12)].map((_, i) => <div key={i} className="space-y-2.5 rounded-xl p-2 animate-pulse"><div className="aspect-square rounded-xl bg-surface-muted" /><div className="h-3 w-4/5 mx-auto rounded bg-surface-muted" /><div className="h-2.5 w-2/5 mx-auto rounded bg-surface-muted" /></div>)}
             </div>
-          ))}
+          ) : (
+            <div className="space-y-3">
+              {[...Array(9)].map((_, i) => <div key={i} className="h-8 rounded bg-surface-muted animate-pulse flex items-center px-3 gap-4"><div className="w-4 h-4 bg-surface-border rounded" /><div className="h-3 w-48 bg-surface-border rounded" /><div className="h-3 w-16 bg-surface-border rounded ml-auto" /><div className="h-3 w-28 bg-surface-border rounded" /></div>)}
+            </div>
+          )}
         </div>
       )}
 
@@ -580,7 +594,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
         </div>
       ) : (
         /* Grid / Cards View */
-        <div ref={gridContainerRef} className="flex-1 overflow-auto p-4">
+        <div ref={gridContainerRef} className="flex-1 overflow-auto p-5">
           {sortedItems.length === 0 && !loading ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500">
               <FolderOpen className="w-12 h-12 stroke-[1.2] mb-3 text-gray-600" />
@@ -588,9 +602,9 @@ export const FilePane: React.FC<FilePaneProps> = ({
             </div>
           ) : (
             <div
-              className="grid gap-3 select-none"
+              className="grid gap-4 select-none"
               style={{
-                gridTemplateColumns: `repeat(auto-fill, minmax(${gridIconSize}px, 1fr))`,
+                gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(128, Math.min(gridIconSize, 240))}px, 1fr))`,
               }}
             >
               {sortedItems.map((item) => {
@@ -625,10 +639,10 @@ export const FilePane: React.FC<FilePaneProps> = ({
                       }
                     }}
                     title={item.Name}
-                    className={`group relative p-1.5 rounded-lg flex flex-col items-center justify-start cursor-default transition-all duration-150 select-none ${
+                    className={`group relative p-2.5 rounded-xl flex flex-col items-center justify-start cursor-default transition-all duration-150 select-none border ${
                       isSelected
-                        ? 'bg-[var(--selection-bg)] ring-1 ring-[var(--selection-border)]/30'
-                        : 'hover:bg-surface-hover/60'
+                        ? 'bg-[var(--selection-bg)] border-[var(--selection-border)]/50 ring-1 ring-[var(--selection-border)]/20'
+                        : 'border-surface-border/50 bg-surface-muted/20 hover:bg-surface-hover/60 hover:border-surface-border'
                     }`}
                   >
                     {/* Top/Center: Dedicated Proportional Preview Container */}
@@ -646,7 +660,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
                       }}
                       data-thumb-path={item.Path}
                       data-thumb-id={item.ID || ''}
-                      className={`w-full aspect-square rounded-xl flex items-center justify-center overflow-hidden relative mb-1.5 transition-all ${
+                      className={`w-full aspect-square rounded-xl flex items-center justify-center overflow-hidden relative mb-2.5 transition-all ${
                         isSelected
                           ? 'border-2 border-[var(--selection-border)] shadow-md bg-surface'
                           : item.IsDir
@@ -730,7 +744,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
         return (
           <div
             data-context-menu="true"
-            className="fixed z-[999] min-w-[210px] py-1.5 rounded-xl bg-[#1c1917]/95 backdrop-blur-xl border border-white/10 shadow-2xl text-xs text-gray-200 select-none animate-in fade-in duration-75"
+            className="fixed z-[999] min-w-[228px] max-h-[calc(100vh-24px)] overflow-y-auto py-2 rounded-xl bg-[#1c1917]/95 backdrop-blur-xl border border-white/10 shadow-2xl text-xs text-gray-200 select-none animate-in fade-in duration-75"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
@@ -738,7 +752,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Open */}
             {isLocalRemote && !item.IsDir && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                 onClick={() => { handleOpenFile(item); setContextMenu(null); }}
               >
                 <span>📄</span>
@@ -747,7 +761,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             )}
             {item.IsDir && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                 onClick={() => { onOpenFolder(item.Path); setContextMenu(null); }}
               >
                 <span>📂</span>
@@ -755,12 +769,12 @@ export const FilePane: React.FC<FilePaneProps> = ({
               </button>
             )}
 
-            <div className="h-px bg-white/10 mx-2 my-1" />
+            <div className="h-px bg-white/10 mx-2 my-1.5" />
 
             {/* New Folder with Selection (macOS style) */}
             {selectedItems.size > 1 && onNewFolderWithSelection && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2 text-mac-accent font-medium`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3 text-mac-accent font-medium`}
                 onClick={() => {
                   const selList = items.filter((i) => selectedItems.has(i.Path));
                   onNewFolderWithSelection(selList);
@@ -775,7 +789,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Batch Renaming */}
             {selectedItems.size > 1 && onBatchRename && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                 onClick={() => {
                   const selList = items.filter((i) => selectedItems.has(i.Path));
                   onBatchRename(selList);
@@ -790,7 +804,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Properties / Get Info */}
             {onGetInfo && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                 onClick={() => {
                   onGetInfo(item);
                   setContextMenu(null);
@@ -801,11 +815,21 @@ export const FilePane: React.FC<FilePaneProps> = ({
               </button>
             )}
 
-            <div className="h-px bg-white/10 mx-2 my-1" />
+            {!isLocalRemote && (
+              <button
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
+                onClick={async () => { setContextMenu(null); await handleShareLink(item); }}
+              >
+                <Link2 className="w-4 h-4 text-mac-cyan" />
+                <span>{t('filePane.shareLink', 'Share Link / Get Public Link')}</span>
+              </button>
+            )}
+
+            <div className="h-px bg-white/10 mx-2 my-1.5" />
 
             {/* Compress (local + cloud) */}
             <button
-              className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+              className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
               onClick={() => { handleCompress(item); setContextMenu(null); }}
             >
               <span>📦</span>
@@ -815,7 +839,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Extract (local + cloud) */}
             {isArchive && (
               <button
-                className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                 onClick={() => { handleExtract(item); setContextMenu(null); }}
               >
                 <span>📂</span>
@@ -826,18 +850,18 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Image Format Conversion */}
             {isLocalRemote && isImage && (
               <>
-                <div className="h-px bg-white/10 mx-2 my-1" />
+                <div className="h-px bg-white/10 mx-2 my-1.5" />
                 {isHeic ? (
                   <>
                     <button
-                      className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                      className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                       onClick={() => { handleImageConvert(item, 'jpeg'); setContextMenu(null); }}
                     >
                       <span>📱</span>
                       <span>{t('filePane.convertHeicToJpeg', 'המר HEIC ל-JPEG')}</span>
                     </button>
                     <button
-                      className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                      className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                       onClick={() => { handleImageConvert(item, 'png'); setContextMenu(null); }}
                     >
                       <span>📱</span>
@@ -848,7 +872,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
                   <>
                     {!isJpeg && (
                       <button
-                        className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                        className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                         onClick={() => { handleImageConvert(item, 'jpeg'); setContextMenu(null); }}
                       >
                         <span>🖼️</span>
@@ -857,7 +881,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
                     )}
                     {!isPng && (
                       <button
-                        className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                        className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                         onClick={() => { handleImageConvert(item, 'png'); setContextMenu(null); }}
                       >
                         <span>🖼️</span>
@@ -872,10 +896,10 @@ export const FilePane: React.FC<FilePaneProps> = ({
             {/* Media Conversion */}
             {isLocalRemote && isMedia && (
               <>
-                <div className="h-px bg-white/10 mx-2 my-1" />
+                <div className="h-px bg-white/10 mx-2 my-1.5" />
                 {isVideo && (
                   <button
-                    className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                    className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                     onClick={() => { handleConvert(item, 'mp4'); setContextMenu(null); }}
                   >
                     <span>🎬</span>
@@ -883,7 +907,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
                   </button>
                 )}
                 <button
-                  className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                  className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                   onClick={() => { handleConvert(item, 'mp3'); setContextMenu(null); }}
                 >
                   <span>🎵</span>
@@ -891,7 +915,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
                 </button>
                 {isVideo && (
                   <button
-                    className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-2`}
+                    className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-white/10 transition-colors flex items-center gap-3`}
                     onClick={() => { handleConvert(item, 'web'); setContextMenu(null); }}
                   >
                     <span>🌐</span>
@@ -901,11 +925,11 @@ export const FilePane: React.FC<FilePaneProps> = ({
               </>
             )}
 
-            <div className="h-px bg-white/10 mx-2 my-1" />
+            <div className="h-px bg-white/10 mx-2 my-1.5" />
 
             {/* Delete */}
             <button
-              className={`w-full px-3 py-1.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-red-500/20 text-red-400 transition-colors flex items-center gap-2`}
+              className={`w-full px-4 py-2.5 ${isRtl ? 'text-right' : 'text-left'} hover:bg-red-500/20 text-red-400 transition-colors flex items-center gap-3`}
               onClick={() => { onDeleteItem(item); setContextMenu(null); }}
             >
               <span>🗑️</span>

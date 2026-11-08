@@ -49,9 +49,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   return (
     <header className="mac-drag-region h-11 bg-surface border-b border-surface-border flex items-center justify-between px-3 shrink-0 select-none z-30">
       {/* Branding & Status Indicator */}
-      <div className={`flex items-center space-x-3.5 ${isRtl ? 'pr-[110px]' : 'pl-[78px]'}`}>
+      <div className={`flex items-center gap-4 min-w-0 ${isRtl ? 'pr-[110px]' : 'pl-[78px]'}`}>
         {/* Logo & App Name */}
-        <div className="flex items-center space-x-1.5 space-x-reverse">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-mac-accent to-amber-700 flex items-center justify-center shadow-sm shrink-0">
             <Cloud className="w-3.5 h-3.5 text-white" />
           </div>
@@ -61,7 +61,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         </div>
 
         {/* Engine status indicator */}
-        <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-surface-muted border border-surface-border text-[11px] text-gray-300">
+        <div className="flex items-center gap-2 px-2.5 py-1 ml-1 rounded-full bg-surface-muted border border-surface-border text-[11px] text-gray-300 shrink-0">
           <span
             className={`w-1.5 h-1.5 rounded-full ${
               settings.rcloneDetected ? 'bg-mac-success' : 'bg-mac-warning animate-pulse'
@@ -112,11 +112,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       </div>
 
       {/* Middle side: Pane Toggle */}
-      <div className="mac-no-drag flex items-center space-x-1 bg-surface-muted p-0.5 rounded-lg border border-surface-border">
+      <div className="mac-no-drag flex items-center gap-1 bg-surface-muted p-1 rounded-lg border border-surface-border shrink-0">
         <button
           onClick={onToggleDualPane}
           title={dualPane ? t('titlebar.singlePaneTitle', 'מעבר לחלון יחיד') : t('titlebar.dualPaneTitle', 'מעבר לתצוגה כפולה')}
-          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+          className={`flex min-h-8 min-w-[112px] items-center justify-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
             dualPane
               ? 'bg-mac-accent text-white shadow-sm'
               : 'text-gray-400 hover:text-white hover:bg-surface-hover'
@@ -129,7 +129,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         <button
           onClick={onToggleDualPane}
           title={t('titlebar.singlePaneTitle', 'חלון יחיד')}
-          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+          className={`flex min-h-8 min-w-[112px] items-center justify-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
             !dualPane
               ? 'bg-mac-accent text-white shadow-sm'
               : 'text-gray-400 hover:text-white hover:bg-surface-hover'

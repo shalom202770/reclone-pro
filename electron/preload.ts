@@ -46,6 +46,9 @@ const api = {
   getStorageUsage: (remote: string): Promise<RemoteStorageInfo> => {
     return ipcRenderer.invoke('rclone:get-storage-usage', remote);
   },
+  getShareLink: (remote: string, filePath: string): Promise<{ success: boolean; url?: string; error?: string }> => {
+    return ipcRenderer.invoke('rclone:get-share-link', { remote, filePath });
+  },
   createFolder: (remote: string, path: string, folderName: string): Promise<boolean> => {
     return ipcRenderer.invoke('rclone:create-folder', { remote, path, folderName });
   },
