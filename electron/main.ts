@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, protocol, net, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, protocol, net, Notification, dialog } from 'electron';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { pathToFileURL } from 'url';
 import { promisify } from 'util';
 const execAsync = promisify(exec);
+import { autoUpdater } from 'electron-updater';
 import { RcloneManager } from './rclone';
 import type { TransferTask } from '../src/types';
 
@@ -339,12 +340,11 @@ function findExecutable(binName: string): string {
 
 // Helper: resolve relative paths for local remotes and clean up any UI prefix
 function resolveLocalPath(filePath: string, remote?: string): string {
-  // Strip Mac://, file://, or similar URI schemes completely
-  let cleaned = (filePath || '').replace(/^(?:file|mac|local\s*mac):\/{0,3}/i, '/').replace(/^\/+/, '/');
-  if (path.isAbsolute(cleaned)) return path.normalize(cleaned);
-  if (remote === 'Local Mac') return path.normalize(path.join(os.homedir(), cleaned));
-  if (remote && remote.startsWith('/')) return path.normalize(path.join(remote, cleaned));
-  return path.normalize(path.join(os.homedir(), cleaned));
+  const cleaned = filePath || '';
+  if (remote && remote.startsWith('/') && !path.isAbsolute(cleaned)) {
+    return rclone.sanitizeLocalPath(path.join(remote, cleaned));
+  }
+  return rclone.sanitizeLocalPath(cleaned);
 }
 
 // --- MEDIA CONVERSION (ffmpeg) ---
@@ -900,43 +900,239 @@ ipcMain.handle('rclone:get-thumbnail-url', async (_event, { remote, filePath, fi
 
   return null;
 });
-// --- CHECK FOR UPDATES (GitHub Releases API) ---
+// --- AUTO-UPDATE via electron-updater ---
+function setupAutoUpdater() {
+  try {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'shalom202770',
+      repo: 'reclone-pro',
+    });
+  } catch (e) {
+    console.error('Failed to setFeedURL on autoUpdater:', e);
+  }
+
+  // Both manual and background checks download automatically; the renderer
+  // presents a single restart/install action once the package is ready.
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+
+  try {
+    autoUpdater.logger = console;
+  } catch {}
+
+  autoUpdater.on('checking-for-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', { status: 'checking' });
+    }
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'downloading',
+        version: info.version,
+        releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
+        releaseName: info.releaseName || '',
+        percent: 0,
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'up-to-date',
+        version: info?.version || app.getVersion(),
+      });
+    }
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'downloading',
+        percent: Math.round(progress.percent),
+        bytesPerSecond: progress.bytesPerSecond,
+        transferred: progress.transferred,
+        total: progress.total,
+      });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'downloaded',
+        version: info.version,
+      });
+    }
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'עדכון מוכן להתקנה! 🚀',
+        body: `גרסה ${info.version} הורדה בהצלחה. לחץ כדי להפעיל מחדש ולהחיל את העדכון.`,
+      }).show();
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('autoUpdater error event:', err);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'error',
+        error: err?.message || String(err),
+      });
+    }
+  });
+}
+
+// IPC: Check for updates via electron-updater (with dev-mode GitHub API fallback)
 ipcMain.handle('app:check-for-updates', async () => {
   try {
-    const https = await import('https');
-    const data: string = await new Promise((resolve, reject) => {
-      https.get('https://api.github.com/repos/shalom202770/Reclone-Pro/releases/latest', {
-        headers: { 'User-Agent': 'Reclone-Pro' },
-      }, (res) => {
-        let body = '';
-        res.on('data', (chunk: string) => body += chunk);
-        res.on('end', () => resolve(body));
-        res.on('error', reject);
-      }).on('error', reject);
-    });
-    const release = JSON.parse(data);
-    const currentVersion = app.getVersion();
-    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+    if (!app.isPackaged) {
+      // In development mode, autoUpdater skips unpackaged apps.
+      // Fetch latest release from GitHub API directly so updates can be tested!
+      try {
+        const httpsModule = await import('https');
+        const options = {
+          hostname: 'api.github.com',
+          path: '/repos/shalom202770/reclone-pro/releases/latest',
+          headers: { 'User-Agent': 'ReclonePro-Desktop' },
+        };
+        const rawData: string = await new Promise((resolve, reject) => {
+          httpsModule.get(options, (res) => {
+            let data = '';
+            res.on('data', (c) => { data += c; });
+            res.on('end', () => resolve(data));
+          }).on('error', reject);
+        });
+        const release = JSON.parse(rawData);
+        if (release && release.tag_name) {
+          const latestVer = release.tag_name.replace(/^v/, '');
+          const currentVer = app.getVersion();
+          if (latestVer !== currentVer) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('updater:status', {
+                status: 'available',
+                version: latestVer,
+                releaseNotes: release.body || '',
+                releaseName: release.name || '',
+              });
+            }
+            return { success: true, currentVersion: currentVer, availableVersion: latestVer };
+          } else {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('updater:status', {
+                status: 'up-to-date',
+                version: currentVer,
+              });
+            }
+            return { success: true, currentVersion: currentVer };
+          }
+        }
+      } catch (devErr: any) {
+        console.log('Dev update check fallback notice:', devErr?.message);
+      }
+    }
 
-    const isVersionNewer = (latest: string, current: string): boolean => {
-      const parse = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
-      const [lMaj, lMin, lPat] = parse(latest);
-      const [cMaj, cMin, cPat] = parse(current);
-      if (lMaj !== cMaj) return lMaj > cMaj;
-      if (lMin !== cMin) return lMin > cMin;
-      return lPat > cPat;
-    };
-
-    const isNewer = isVersionNewer(latestVersion, currentVersion);
-    return {
-      currentVersion,
-      latestVersion,
-      isNewer,
-      downloadUrl: release.html_url || 'https://github.com/shalom202770/Reclone-Pro/releases/latest',
-      releaseNotes: release.body || '',
-    };
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, currentVersion: app.getVersion(), updateInfo: result?.updateInfo };
   } catch (e: any) {
-    return { currentVersion: app.getVersion(), latestVersion: '', isNewer: false, error: e.message };
+    console.error('Check for updates error:', e);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'error',
+        error: e.message || String(e),
+      });
+    }
+    return { success: false, currentVersion: app.getVersion(), error: e.message };
+  }
+});
+
+// IPC: Download the available update in the background
+ipcMain.handle('app:download-update', async () => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', { status: 'downloading', percent: 0 });
+    }
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (e: any) {
+    console.error('Download update error:', e);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater:status', {
+        status: 'error',
+        error: e.message || String(e),
+      });
+    }
+    return { success: false, error: e.message };
+  }
+});
+
+// IPC: Quit and install the downloaded update immediately
+ipcMain.handle('app:install-update', () => {
+  setImmediate(() => {
+    autoUpdater.quitAndInstall(false, true);
+  });
+  return true;
+});
+
+// Native Upload File/Folder Dialogs
+ipcMain.handle('dialog:pick-files-for-upload', async () => {
+  if (!mainWindow) return [];
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'בחר קבצים להעלאה (Select Files to Upload)',
+    properties: ['openFile', 'multiSelections'],
+  });
+  if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
+    return [];
+  }
+  return res.filePaths.map((fp) => {
+    try {
+      const stat = fs.statSync(fp);
+      return {
+        path: fp,
+        name: path.basename(fp),
+        size: stat.size,
+        isDir: false,
+      };
+    } catch {
+      return {
+        path: fp,
+        name: path.basename(fp),
+        size: 0,
+        isDir: false,
+      };
+    }
+  });
+});
+
+ipcMain.handle('dialog:pick-folder-for-upload', async () => {
+  if (!mainWindow) return null;
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'בחר תיקייה להעלאה (Select Folder to Upload)',
+    properties: ['openDirectory'],
+  });
+  if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
+    return null;
+  }
+  const folderPath = res.filePaths[0];
+  try {
+    const stat = fs.statSync(folderPath);
+    return {
+      path: folderPath,
+      name: path.basename(folderPath),
+      size: 0,
+      isDir: true,
+    };
+  } catch {
+    return {
+      path: folderPath,
+      name: path.basename(folderPath),
+      size: 0,
+      isDir: true,
+    };
   }
 });
 
@@ -945,6 +1141,27 @@ app.whenReady().then(async () => {
     rclone.setUserDataPath(app.getPath('userData'));
     await rclone.detectRclonePath(undefined, process.platform === 'win32');
   } catch {}
+
+  // Initialize auto-updater (electron-updater)
+  setupAutoUpdater();
+
+  // Background automatic check 5s after launch
+  setTimeout(() => {
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdates().catch((err) => {
+        console.log('Background update check notice:', err?.message);
+      });
+    }
+  }, 5000);
+
+  // Periodic background check every 4 hours
+  setInterval(() => {
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdates().catch((err) => {
+        console.log('Periodic background update check notice:', err?.message);
+      });
+    }
+  }, 4 * 60 * 60 * 1000);
 
   // Register protocol handler for local file access with safe URL conversion
   protocol.handle('local-resource', (request) => {

@@ -20,7 +20,10 @@ import {
   Edit2,
   ZoomIn,
   Copy,
-  Layers
+  Layers,
+  UploadCloud,
+  FileUp,
+  FolderUp
 } from 'lucide-react';
 import type { RemoteInfo, ViewMode } from '../types';
 import { useTranslation } from '../i18n/context';
@@ -52,6 +55,8 @@ interface ToolbarProps {
   onTransferToTarget: () => void;
   onDeleteSelected: () => void;
   onOpenDuplicateScanner?: () => void;
+  onUploadFiles?: () => void;
+  onUploadFolder?: () => void;
   gridIconSize: number;
   onGridIconSizeChange: (size: number) => void;
 }
@@ -83,17 +88,24 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onTransferToTarget,
   onDeleteSelected,
   onOpenDuplicateScanner,
+  onUploadFiles,
+  onUploadFolder,
   gridIconSize,
   onGridIconSizeChange,
 }) => {
   const { t, isRtl } = useTranslation();
   const [remoteDropdownOpen, setRemoteDropdownOpen] = useState(false);
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setRemoteDropdownOpen(false);
+      }
+      if (uploadMenuRef.current && !uploadMenuRef.current.contains(event.target as Node)) {
+        setUploadMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -197,6 +209,54 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <ArrowLeftRight className="w-3.5 h-3.5" />
               <span>{t('toolbar.copyToTarget', 'העתק')} {selectedCount > 0 ? `(${selectedCount})` : ''}</span>
             </button>
+          )}
+
+          {/* Upload Button & Dropdown */}
+          {(onUploadFiles || onUploadFolder) && (
+            <div className="relative" ref={uploadMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUploadMenuOpen(!uploadMenuOpen)}
+                title={t('upload.upload', 'העלאה מהמחשב')}
+                className="p-1.5 rounded-lg text-mac-cyan hover:bg-surface-hover active:bg-surface-active transition-colors cursor-pointer flex items-center space-x-1 space-x-reverse"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
+              </button>
+
+              {uploadMenuOpen && (
+                <div
+                  className={`absolute ${isRtl ? 'right-0' : 'left-0'} mt-1 w-44 rounded-xl glass-dropdown border border-surface-border z-50 py-1 shadow-xl animate-in fade-in duration-100`}
+                >
+                  {onUploadFiles && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadMenuOpen(false);
+                        onUploadFiles();
+                      }}
+                      className="w-full px-3 py-1.5 text-xs text-foreground/90 hover:bg-surface-hover flex items-center space-x-2 space-x-reverse transition-colors cursor-pointer text-start"
+                    >
+                      <FileUp className="w-3.5 h-3.5 text-mac-cyan" />
+                      <span>{t('upload.uploadFiles', 'העלאת קבצים')}</span>
+                    </button>
+                  )}
+                  {onUploadFolder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadMenuOpen(false);
+                        onUploadFolder();
+                      }}
+                      className="w-full px-3 py-1.5 text-xs text-foreground/90 hover:bg-surface-hover flex items-center space-x-2 space-x-reverse transition-colors cursor-pointer text-start"
+                    >
+                      <FolderUp className="w-3.5 h-3.5 text-mac-accent" />
+                      <span>{t('upload.uploadFolder', 'העלאת תיקייה')}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* New Folder */}

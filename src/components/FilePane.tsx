@@ -12,7 +12,8 @@ import {
   ArrowUp, 
   ArrowDown, 
   FolderOpen,
-  X as XIcon
+  X as XIcon,
+  UploadCloud
 } from 'lucide-react';
 import type { RcloneItem, ViewMode, SortField, SortOrder } from '../types';
 import { formatBytes, formatDate, getFileCategory } from '../lib/utils';
@@ -58,6 +59,7 @@ interface FilePaneProps {
   onChecksum?: (item: RcloneItem, algo: 'md5' | 'sha256') => void;
   onNewFolderWithSelection?: (selectedItems: RcloneItem[]) => void;
   onBatchRename?: (selectedItems: RcloneItem[]) => void;
+  onNativeFilesDrop?: (files: Array<{ path: string; name: string; size: number; isDir: boolean }>) => void;
 }
 
 export const FilePane: React.FC<FilePaneProps> = ({
@@ -81,6 +83,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
   onTransferItem,
   onDeleteItem,
   onDropTransfer,
+  onNativeFilesDrop,
   onRefresh,
   gridIconSize,
   onGetInfo,
@@ -90,6 +93,7 @@ export const FilePane: React.FC<FilePaneProps> = ({
 }) => {
   const { t, isRtl } = useTranslation();
   const [quickLookItem, setQuickLookItem] = useState<RcloneItem | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -105,7 +109,15 @@ export const FilePane: React.FC<FilePaneProps> = ({
     return () => window.removeEventListener('mousedown', handleDismiss);
   }, []);
 
-  const isLocalRemote = remote === 'Local Mac' || remote.startsWith('/');
+  const isLocalRemote =
+    !remote ||
+    remote === 'Local Mac' ||
+    remote === 'Local PC' ||
+    remote === 'Local Disk' ||
+    remote === 'local' ||
+    remote.startsWith('/') ||
+    remote.startsWith('\\') ||
+    /^[a-zA-Z]:/.test(remote);
 
   // Fast & responsive context menu - zero delay
   const handleContextMenu = useCallback((e: React.MouseEvent, item: RcloneItem) => {
@@ -296,10 +308,49 @@ export const FilePane: React.FC<FilePaneProps> = ({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDraggingOver(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDraggingOver(false);
+
+    // 1. Check for native OS files/folders dropped from Finder or Explorer
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const nativeFiles: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i];
+        let filePath = '';
+        if (window.electronAPI?.getPathForFile) {
+          filePath = window.electronAPI.getPathForFile(file);
+        }
+        if (!filePath) {
+          filePath = (file as any).path || '';
+        }
+        if (filePath) {
+          nativeFiles.push({
+            path: filePath,
+            name: file.name,
+            size: file.size || 0,
+            isDir: !file.type && file.size === 0,
+          });
+        }
+      }
+      if (nativeFiles.length > 0 && onNativeFilesDrop) {
+        onNativeFilesDrop(nativeFiles);
+        return;
+      }
+    }
+
+    // 2. Internal pane drag and drop
     try {
       const data = e.dataTransfer.getData('application/json');
       if (data && onDropTransfer) {
@@ -383,10 +434,28 @@ export const FilePane: React.FC<FilePaneProps> = ({
       tabIndex={0}
       className={`flex-1 flex flex-col bg-surface overflow-hidden relative ${isRtl ? 'text-right' : 'text-left'} select-none outline-none focus:outline-none`}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onKeyDown={handleKeyDown}
       onClick={() => containerRef.current?.focus()}
     >
+      {/* Native Drag-Over Dropzone Indicator */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-40 bg-mac-accent/15 backdrop-blur-xs border-2 border-dashed border-mac-accent flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150">
+          <div className="p-5 rounded-2xl bg-[#1c1917]/95 border border-mac-accent/50 shadow-2xl flex flex-col items-center space-y-2.5 text-center">
+            <div className="w-12 h-12 rounded-xl bg-mac-accent/20 border border-mac-accent/30 flex items-center justify-center text-mac-accent shadow-inner">
+              <UploadCloud className="w-7 h-7 animate-bounce" />
+            </div>
+            <span className="font-bold text-sm text-foreground">
+              {t('upload.dropHere', 'שחרר קבצים או תיקיות כאן להעלאה ישירה')}
+            </span>
+            <span className="text-xs text-gray-400 font-mono">
+              {remote} {path ? `: /${path}` : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Error Banner */}
       {error && (
         <div className="bg-mac-danger/15 border-b border-mac-danger/30 text-mac-danger px-4 py-2 text-xs flex items-center justify-between">

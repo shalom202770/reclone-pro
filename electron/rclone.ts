@@ -5,6 +5,7 @@ import os from 'os';
 import https from 'https';
 import extractZip from 'extract-zip';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 import type { RcloneItem, RemoteInfo, RemoteStorageInfo, TransferTask, TransferSubFile } from '../src/types';
 
 // Prepend macOS package manager paths to process.env.PATH so rclone & brew are always detected
@@ -74,6 +75,155 @@ export class RcloneManager {
 
   public setUserDataPath(p: string) {
     this.userDataPath = p;
+  }
+
+  public isLocalRemote(rem?: string): boolean {
+    if (!rem) return true;
+    const clean = rem.trim();
+    return (
+      clean === '' ||
+      clean === 'local' ||
+      clean === 'Local Mac' ||
+      clean === 'Local PC' ||
+      clean === 'Local Disk' ||
+      clean === 'Local Storage' ||
+      clean === 'Local' ||
+      clean.startsWith('/') ||
+      clean.startsWith('\\') ||
+      /^[a-zA-Z]:[\\/]/.test(clean) ||
+      /^[a-zA-Z]:$/.test(clean)
+    );
+  }
+
+  public sanitizeLocalPath(rawPath: string): string {
+    if (!rawPath) return os.homedir();
+    let cleaned = rawPath.trim();
+    // Strip surrounding quotes
+    if (
+      (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+      (cleaned.startsWith("'") && cleaned.endsWith("'"))
+    ) {
+      cleaned = cleaned.slice(1, -1).trim();
+    }
+    // Remove URI protocol prefix if present
+    if (cleaned.startsWith('file://')) {
+      try {
+        cleaned = fileURLToPath(cleaned);
+      } catch {
+        cleaned = cleaned.replace(/^file:\/\//i, '');
+      }
+    } else {
+      cleaned = cleaned.replace(/^(?:mac|local\s*mac|local-resource):\/{0,3}/i, '/');
+    }
+    // Decode URI encoding if present (e.g. %20 for spaces)
+    if (/%[0-9a-fA-F]{2}/.test(cleaned)) {
+      try {
+        cleaned = decodeURIComponent(cleaned);
+      } catch {}
+    }
+    // Expand home directory tilde ~
+    if (cleaned === '~') {
+      cleaned = os.homedir();
+    } else if (cleaned.startsWith('~/') || cleaned.startsWith('~\\')) {
+      cleaned = path.join(os.homedir(), cleaned.slice(2));
+    }
+    // Windows drive normalization (e.g. /c/Users/... -> C:\Users\...)
+    if (process.platform === 'win32') {
+      const winDriveMatch = cleaned.match(/^\/([a-zA-Z]):?[\\/](.*)/);
+      if (winDriveMatch) {
+        cleaned = `${winDriveMatch[1].toUpperCase()}:\\${winDriveMatch[2].replace(/\//g, '\\')}`;
+      }
+    }
+    // Normalize path separators
+    cleaned = path.normalize(cleaned);
+    // Ensure absolute path
+    if (!path.isAbsolute(cleaned)) {
+      cleaned = path.resolve(os.homedir(), cleaned);
+    }
+    return cleaned;
+  }
+
+  public cleanCloudPath(cloudPath: string): string {
+    if (!cloudPath) return '';
+    return cloudPath
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '')
+      .replace(/\/+/g, '/')
+      .replace(/\/$/, '')
+      .trim();
+  }
+
+  public formatPermissionError(targetPath: string, err: any): string {
+    const isDarwin = process.platform === 'darwin';
+    const isWin = process.platform === 'win32';
+    const code = err?.code || '';
+    const errStr = String(err).toLowerCase();
+    if (
+      code === 'EACCES' ||
+      code === 'EPERM' ||
+      errStr.includes('permission denied') ||
+      errStr.includes('operation not permitted') ||
+      errStr.includes('access is denied')
+    ) {
+      if (isDarwin) {
+        return `שגיאת הרשאות macOS: אין גישה לקובץ או לתיקייה "${path.basename(targetPath)}". יש לאפשר הרשאת "גישה מלאה לדיסק" (Full Disk Access) או "קבצים ותיקיות" עבור Reclone Pro בהגדרות המערכת (System Settings > Privacy & Security).`;
+      } else if (isWin) {
+        return `שגיאת הרשאות גישה ב-Windows: אין גישה לקובץ/תיקייה "${path.basename(targetPath)}". ייתכן שנדרשות הרשאות מנהל מערכת (Administrator).`;
+      }
+      return `שגיאת הרשאות מערכת (Permission Denied): אין הרשאה לקרוא או לכתוב בנתיב: ${targetPath}`;
+    }
+    return `שגיאה בגישה לנתיב "${path.basename(targetPath)}": ${err?.message || err}`;
+  }
+
+  public formatRcloneError(rawError: string, task: TransferTask): string {
+    const err = (rawError || '').trim();
+    if (!err) {
+      return `העברת "${task.name}" נכשלה (שגיאה לא מוגדרת)`;
+    }
+    const lower = err.toLowerCase();
+    if (
+      lower.includes('permission denied') ||
+      lower.includes('operation not permitted') ||
+      lower.includes('access is denied')
+    ) {
+      if (process.platform === 'darwin') {
+        return `שגיאת הרשאות macOS: נדחתה הגישה עבור "${task.name}". יש לאפשר הרשאת Full Disk Access בהגדרות הפרטיות והאבטחה של macOS.`;
+      }
+      return `שגיאת הרשאות מערכת: נדחתה הגישה לקובץ או לתיקייה "${task.name}".`;
+    }
+    if (
+      lower.includes('directory not found') ||
+      lower.includes('no such file or directory') ||
+      lower.includes('cannot find the path')
+    ) {
+      return `הקובץ או התיקייה המקוריים אינם קיימים או שהועברו (${task.name})`;
+    }
+    if (
+      lower.includes('quotaexceeded') ||
+      lower.includes('quota exceeded') ||
+      lower.includes('storage full')
+    ) {
+      return `נפח האחסון בענן מלא או שחרגת ממכסת ההעלאה של החשבון (${task.dstRemote})`;
+    }
+    if (
+      lower.includes('ratelimit') ||
+      lower.includes('rate limit') ||
+      lower.includes('user rate limit')
+    ) {
+      return `חרגת ממגבלת בקשות ההעלאה של ספק הענן (${task.dstRemote}). נסה שוב בעוד מספר דקות.`;
+    }
+    if (
+      lower.includes('invalid_grant') ||
+      lower.includes('token expired') ||
+      lower.includes('authentication failed')
+    ) {
+      return `פג תוקף החיבור לחשבון הענן (${task.dstRemote}). יש להתחבר מחדש במסך ניהול חשבונות.`;
+    }
+    const cleaned = err
+      .replace(/^ERROR\s*:\s*/i, '')
+      .replace(/^Failed to (?:copy|copyto|move|moveto|sync):\s*/i, '')
+      .replace(/^[0-9T:.\-+Z]+ [a-z0-9/.]+:\s*/i, '');
+    return `העברת "${task.name}" נכשלה: ${cleaned}`;
   }
 
   public async detectRclonePath(customPath?: string, autoSetupIfMissing: boolean = false): Promise<{ detected: boolean; path: string; version: string; configPath: string }> {
@@ -468,13 +618,14 @@ export class RcloneManager {
   }
 
   public async listItems(remote: string, dirPath: string = '', showHidden: boolean = false): Promise<RcloneItem[]> {
-    if (remote === 'Local Mac' || remote === 'local' || remote === '') {
+    if (this.isLocalRemote(remote)) {
       return this.listLocalItems(dirPath || os.homedir(), showHidden);
     }
 
     if (this.isDetected) {
       try {
-        const fullRemotePath = dirPath ? `${remote}:${dirPath}` : `${remote}:`;
+        const cleanCloud = this.cleanCloudPath(dirPath);
+        const fullRemotePath = cleanCloud ? `${remote}:${cleanCloud}` : `${remote}:`;
         this.log('command', `${this.rclonePath} lsjson "${fullRemotePath}" --fast-list`);
         const { stdout } = await execAsync(`"${this.rclonePath}" lsjson "${fullRemotePath}" --fast-list --max-depth 1`, {
           env: process.env,
@@ -485,7 +636,7 @@ export class RcloneManager {
           items = items.filter((i) => !i.Name.startsWith('.'));
         }
         // Normalize item.Path to be full relative path from remote root so subfolders/files retain full path
-        const cleanDir = dirPath ? dirPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+        const cleanDir = cleanCloud ? cleanCloud.replace(/^\/+|\/+$/g, '') : '';
         items = items.map((i) => {
           const rel = (i.Path || i.Name || '').replace(/\\/g, '/').replace(/^\/+/, '');
           return {
@@ -504,8 +655,16 @@ export class RcloneManager {
   }
 
   private async listLocalItems(dirPath: string, showHidden: boolean): Promise<RcloneItem[]> {
-    const targetDir = dirPath ? path.resolve(dirPath) : os.homedir();
-    const entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
+    const targetDir = this.sanitizeLocalPath(dirPath || os.homedir());
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = await fs.promises.readdir(targetDir, { withFileTypes: true });
+    } catch (err: any) {
+      const permMsg = this.formatPermissionError(targetDir, err);
+      this.log('error', permMsg);
+      throw new Error(permMsg);
+    }
+
     const items: RcloneItem[] = [];
 
     for (const entry of entries) {
@@ -538,15 +697,23 @@ export class RcloneManager {
   }
 
   public async createDirectory(remote: string, dirPath: string, folderName: string): Promise<boolean> {
-    const targetPath = dirPath ? `${dirPath}/${folderName}` : folderName;
-    if (remote === 'Local Mac' || remote === 'local' || remote === '') {
-      const fullPath = path.resolve(dirPath || os.homedir(), folderName);
-      await fs.promises.mkdir(fullPath, { recursive: true });
-      this.log('info', `נוצרה תיקייה מקומית: ${fullPath}`);
-      return true;
+    if (this.isLocalRemote(remote)) {
+      const baseDir = this.sanitizeLocalPath(dirPath || os.homedir());
+      const fullPath = path.join(baseDir, folderName);
+      try {
+        await fs.promises.mkdir(fullPath, { recursive: true });
+        this.log('info', `נוצרה תיקייה מקומית: ${fullPath}`);
+        return true;
+      } catch (err: any) {
+        const permMsg = this.formatPermissionError(fullPath, err);
+        this.log('error', permMsg);
+        throw new Error(permMsg);
+      }
     }
 
     if (this.isDetected) {
+      const cleanDir = this.cleanCloudPath(dirPath);
+      const targetPath = cleanDir ? `${cleanDir}/${folderName}` : folderName;
       await execAsync(`"${this.rclonePath}" mkdir "${remote}:${targetPath}"`, { env: process.env });
       this.log('info', `נוצרה תיקייה בענן: ${remote}:${targetPath}`);
       return true;
@@ -556,16 +723,24 @@ export class RcloneManager {
   }
 
   public async deleteItem(remote: string, itemPath: string, isDir: boolean): Promise<boolean> {
-    if (remote === 'Local Mac' || remote === 'local' || remote === '') {
-      await fs.promises.rm(itemPath, { recursive: true, force: true });
-      this.log('info', `נמחק פריט מקומי: ${itemPath}`);
-      return true;
+    if (this.isLocalRemote(remote)) {
+      const fullPath = this.sanitizeLocalPath(itemPath);
+      try {
+        await fs.promises.rm(fullPath, { recursive: true, force: true });
+        this.log('info', `נמחק פריט מקומי: ${fullPath}`);
+        return true;
+      } catch (err: any) {
+        const permMsg = this.formatPermissionError(fullPath, err);
+        this.log('error', permMsg);
+        throw new Error(permMsg);
+      }
     }
 
     if (this.isDetected) {
+      const cleanPath = this.cleanCloudPath(itemPath);
       const cmd = isDir ? 'purge' : 'deletefile';
-      await execAsync(`"${this.rclonePath}" ${cmd} "${remote}:${itemPath}"`, { env: process.env });
-      this.log('info', `נמחק פריט ענן: ${remote}:${itemPath}`);
+      await execAsync(`"${this.rclonePath}" ${cmd} "${remote}:${cleanPath}"`, { env: process.env });
+      this.log('info', `נמחק פריט ענן: ${remote}:${cleanPath}`);
       return true;
     }
 
@@ -573,15 +748,25 @@ export class RcloneManager {
   }
 
   public async renameItem(remote: string, oldPath: string, newPath: string): Promise<boolean> {
-    if (remote === 'Local Mac' || remote === 'local' || remote === '') {
-      await fs.promises.rename(oldPath, newPath);
-      this.log('info', `שם פריט מקומי שונה ל-${newPath}`);
-      return true;
+    if (this.isLocalRemote(remote)) {
+      const fullOld = this.sanitizeLocalPath(oldPath);
+      const fullNew = this.sanitizeLocalPath(newPath);
+      try {
+        await fs.promises.rename(fullOld, fullNew);
+        this.log('info', `שם פריט מקומי שונה ל-${fullNew}`);
+        return true;
+      } catch (err: any) {
+        const permMsg = this.formatPermissionError(fullNew, err);
+        this.log('error', permMsg);
+        throw new Error(permMsg);
+      }
     }
 
     if (this.isDetected) {
-      await execAsync(`"${this.rclonePath}" moveto "${remote}:${oldPath}" "${remote}:${newPath}"`, { env: process.env });
-      this.log('info', `שם פריט ענן שונה: ${newPath}`);
+      const cleanOld = this.cleanCloudPath(oldPath);
+      const cleanNew = this.cleanCloudPath(newPath);
+      await execAsync(`"${this.rclonePath}" moveto "${remote}:${cleanOld}" "${remote}:${cleanNew}"`, { env: process.env });
+      this.log('info', `שם פריט ענן שונה: ${cleanNew}`);
       return true;
     }
 
@@ -755,69 +940,112 @@ export class RcloneManager {
   ) {
     this.log('command', `התחלת העברה: ${task.name} מ-[${task.srcRemote}:${task.srcPath}] ל-[${task.dstRemote}:${task.dstPath}]`);
 
-    const isLocalRemote = (rem?: string) =>
-      !rem ||
-      rem === 'Local Mac' ||
-      rem === 'Local PC' ||
-      rem === 'local' ||
-      rem === '' ||
-      rem.startsWith('/') ||
-      /^[a-zA-Z]:[\\/]/.test(rem);
-
-    const isSrcLocal = isLocalRemote(task.srcRemote);
-    const isDstLocal = isLocalRemote(task.dstRemote);
-
-    // Normalize local paths to absolute (handles empty pane.path → relative dstPath, Windows paths, etc.)
-    const normalizedSrcPath = isSrcLocal && !path.isAbsolute(task.srcPath)
-      ? path.resolve(os.homedir(), task.srcPath)
-      : task.srcPath;
-    const normalizedDstPath = isDstLocal && !path.isAbsolute(task.dstPath)
-      ? path.resolve(os.homedir(), task.dstPath)
-      : task.dstPath;
-
-    // Clean cloud paths (POSIX forward slashes without leading slashes)
-    const cleanSrcCloud = (task.srcPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
-    const cleanDstCloud = (task.dstPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
-
-    // Ensure local destination directory exists before starting transfer
-    if (isDstLocal) {
-      const dstDir = (task.isDir === false) ? path.dirname(normalizedDstPath) : normalizedDstPath;
-      try { fs.mkdirSync(dstDir, { recursive: true }); } catch {}
-    }
-
-    const src = isSrcLocal ? normalizedSrcPath : `${task.srcRemote}:${cleanSrcCloud}`;
-    const dst = isDstLocal ? normalizedDstPath : `${task.dstRemote}:${cleanDstCloud}`;
-
     if (!this.isDetected) {
-      this.log('error', 'לא ניתן לבצע העברה ללא מנוע Rclone פעיל במערכת.');
+      const err = 'לא ניתן לבצע העברה ללא מנוע Rclone פעיל במערכת.';
+      this.log('error', err);
       this.onProgressCallback?.({
         id: task.id,
+        taskName: task.name,
         status: 'failed',
-        error: 'Rclone אינו מותקן במערכת',
+        error: err,
+        speed: '0 B/s',
+        speedBytes: 0,
       });
       return;
     }
 
-    // For single files, use copyto / moveto instead of copy / move so Rclone transfers directly without creating a nested folder
-    let operation: string = task.operation;
-    const isSingleFile = task.isDir === false || (task.isDir === undefined && (() => {
-      if (isSrcLocal) {
-        try {
-          return !fs.statSync(normalizedSrcPath).isDirectory();
-        } catch {
-          return false;
-        }
-      }
-      return false;
-    })());
+    const isSrcLocal = this.isLocalRemote(task.srcRemote);
+    const isDstLocal = this.isLocalRemote(task.dstRemote);
 
+    // Sanitize local and cloud paths across macOS, Windows, and Linux
+    const normalizedSrcPath = isSrcLocal
+      ? this.sanitizeLocalPath(task.srcPath)
+      : this.cleanCloudPath(task.srcPath);
+
+    const normalizedDstPath = isDstLocal
+      ? this.sanitizeLocalPath(task.dstPath)
+      : this.cleanCloudPath(task.dstPath);
+
+    // 1. Pre-flight checks for local source (upload or local-to-local)
+    if (isSrcLocal) {
+      if (!fs.existsSync(normalizedSrcPath)) {
+        const errorMsg = `הקובץ או התיקייה המקומיים לא נמצאו בנתיב: ${normalizedSrcPath}`;
+        this.log('error', errorMsg);
+        this.onProgressCallback?.({
+          id: task.id,
+          taskName: task.name,
+          status: 'failed',
+          error: errorMsg,
+          speed: '0 B/s',
+          speedBytes: 0,
+        });
+        return;
+      }
+      try {
+        fs.accessSync(normalizedSrcPath, fs.constants.R_OK);
+      } catch (accessErr: any) {
+        const permMsg = this.formatPermissionError(normalizedSrcPath, accessErr);
+        this.log('error', permMsg);
+        this.onProgressCallback?.({
+          id: task.id,
+          taskName: task.name,
+          status: 'failed',
+          error: permMsg,
+          speed: '0 B/s',
+          speedBytes: 0,
+        });
+        return;
+      }
+    }
+
+    // 2. Pre-flight checks for local destination (download or local-to-local)
+    if (isDstLocal) {
+      const dstDir = (task.isDir === false) ? path.dirname(normalizedDstPath) : normalizedDstPath;
+      try {
+        fs.mkdirSync(dstDir, { recursive: true });
+        fs.accessSync(dstDir, fs.constants.W_OK);
+      } catch (accessErr: any) {
+        const permMsg = this.formatPermissionError(dstDir, accessErr);
+        this.log('error', permMsg);
+        this.onProgressCallback?.({
+          id: task.id,
+          taskName: task.name,
+          status: 'failed',
+          error: permMsg,
+          speed: '0 B/s',
+          speedBytes: 0,
+        });
+        return;
+      }
+    }
+
+    // Determine whether source is directory or single file
+    let isSingleFile = false;
+    if (task.isDir === true) {
+      isSingleFile = false;
+    } else if (task.isDir === false) {
+      isSingleFile = true;
+    } else if (isSrcLocal) {
+      try {
+        const stat = fs.statSync(normalizedSrcPath);
+        isSingleFile = !stat.isDirectory();
+      } catch {
+        isSingleFile = true;
+      }
+    }
+
+    // Select correct rclone operation
+    let operation: string = task.operation || (isSingleFile ? 'copyto' : 'copy');
     if (isSingleFile) {
       if (operation === 'copy') operation = 'copyto';
       else if (operation === 'move') operation = 'moveto';
-    } else if (task.isDir === true) {
+    } else {
       if (operation === 'copyto') operation = 'copy';
       else if (operation === 'moveto') operation = 'move';
     }
+
+    const src = isSrcLocal ? normalizedSrcPath : `${task.srcRemote}:${normalizedSrcPath}`;
+    const dst = isDstLocal ? normalizedDstPath : `${task.dstRemote}:${normalizedDstPath}`;
 
     const args = [
       operation,
@@ -844,15 +1072,14 @@ export class RcloneManager {
     }
 
     if (isSingleFile) {
-      // Optimization: skip scanning destination directory tree to eliminate initial 5s delay!
+      // Optimization: skip scanning destination directory tree for single files
       args.push('--no-traverse');
       args.push('--no-check-dest');
     } else {
-      // Optimization: use fast-list for directory trees
+      // Optimization: fast-list for directory trees
       args.push('--fast-list');
     }
 
-    // Optimization: avoid re-checking/overwriting existing files to bypass destination latency
     args.push('--ignore-existing');
 
     this.log('command', `הפעלת פקודה: ${this.rclonePath} ${args.join(' ')}`);
@@ -860,12 +1087,33 @@ export class RcloneManager {
     const proc = spawn(this.rclonePath, args, { env: process.env });
     this.activeProcesses.set(task.id, proc);
 
+    let lastErrorCaptured = '';
+
     proc.stdout.on('data', (data) => {
-      this.parseRcloneOutput(task.id, data.toString());
+      this.parseRcloneOutput(task.id, data.toString(), (err) => {
+        if (err) lastErrorCaptured = err;
+      });
     });
 
     proc.stderr.on('data', (data) => {
-      this.parseRcloneOutput(task.id, data.toString());
+      const text = data.toString();
+      this.parseRcloneOutput(task.id, text, (err) => {
+        if (err) lastErrorCaptured = err;
+      });
+      const lines = text.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (
+          trimmed &&
+          (trimmed.includes('ERROR') ||
+            trimmed.includes('Failed to') ||
+            trimmed.includes('permission denied') ||
+            trimmed.includes('operation not permitted') ||
+            trimmed.includes('no such file'))
+        ) {
+          lastErrorCaptured = trimmed;
+        }
+      }
     });
 
     proc.on('close', (code) => {
@@ -883,12 +1131,13 @@ export class RcloneManager {
           subFiles: [],
         });
       } else {
-        this.log('error', `העברת ${task.name} נכשלה (קוד: ${code})`);
+        const formattedErr = this.formatRcloneError(lastErrorCaptured || `קוד יציאה ${code}`, task);
+        this.log('error', formattedErr);
         this.onProgressCallback?.({
           id: task.id,
           taskName: task.name,
           status: 'failed',
-          error: `קוד יציאה ${code}`,
+          error: formattedErr,
           speed: '0 B/s',
           speedBytes: 0,
         });
@@ -897,22 +1146,27 @@ export class RcloneManager {
 
     proc.on('error', (err) => {
       this.activeProcesses.delete(task.id);
-      this.log('error', `שגיאת תהליך: ${err.message}`);
+      const permMsg = this.formatPermissionError(normalizedSrcPath, err);
+      this.log('error', `שגיאת תהליך: ${permMsg}`);
       this.onProgressCallback?.({
         id: task.id,
         taskName: task.name,
         status: 'failed',
-        error: err.message,
+        error: permMsg,
       });
     });
   }
 
-  private parseRcloneOutput(taskId: string, output: string) {
+  private parseRcloneOutput(taskId: string, output: string, onError?: (err: string) => void) {
     const lines = output.split('\n');
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
         const json = JSON.parse(line);
+        if (json.level === 'error' || json.error) {
+          const errMsg = json.msg || json.error || '';
+          if (errMsg && onError) onError(errMsg);
+        }
         if (json.stats) {
           const stats = json.stats;
           const bytes = stats.bytes || 0;
@@ -953,7 +1207,11 @@ export class RcloneManager {
           });
         }
       } catch {
-        this.log('info', `[Rclone] ${line.trim()}`);
+        const trimmed = line.trim();
+        if (trimmed.includes('ERROR') || trimmed.includes('Failed to')) {
+          if (onError) onError(trimmed);
+        }
+        this.log('info', `[Rclone] ${trimmed}`);
       }
     }
   }

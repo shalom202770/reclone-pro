@@ -7,9 +7,13 @@ import {
   RefreshCw, 
   Cloud, 
   Users,
-  GitCompare
+  GitCompare,
+  Sparkles,
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 import type { AppSettings } from '../types';
+import type { UpdateInfo } from './UpdateNotification';
 import { useTranslation } from '../i18n/context';
 
 interface TitleBarProps {
@@ -23,6 +27,8 @@ interface TitleBarProps {
   logsOpen: boolean;
   settings: AppSettings;
   activeTransferCount: number;
+  updateInfo?: UpdateInfo;
+  onOpenUpdatePrompt?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -35,6 +41,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onRefreshAll,
   logsOpen,
   settings,
+  updateInfo,
+  onOpenUpdatePrompt,
 }) => {
   const { t, isRtl } = useTranslation();
 
@@ -67,6 +75,40 @@ export const TitleBar: React.FC<TitleBarProps> = ({
             )}
           </span>
         </div>
+
+        {/* Update Status Pill */}
+        {updateInfo?.status === 'available' && (
+          <button
+            onClick={onOpenUpdatePrompt}
+            className="mac-no-drag flex items-center space-x-1.5 space-x-reverse px-2.5 py-0.5 rounded-full bg-mac-accent/20 border border-mac-accent/40 text-[10px] text-mac-accent hover:border-mac-accent transition-all animate-pulse cursor-pointer shadow-xs"
+            title={t('updater.newVersionFound', 'גרסה חדשה זמינה! לחץ לפתיחה')}
+          >
+            <Sparkles className="w-3 h-3 text-mac-accent" />
+            <span className="font-bold">v{updateInfo.version} {t('updater.availableBadge', 'זמינה')}</span>
+          </button>
+        )}
+
+        {updateInfo?.status === 'downloading' && (
+          <button
+            onClick={onOpenUpdatePrompt}
+            className="mac-no-drag flex items-center space-x-1.5 space-x-reverse px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-500/40 text-[10px] text-blue-400 hover:border-blue-400 transition-all cursor-pointer shadow-xs"
+            title={t('updater.downloading', 'מוריד עדכון')}
+          >
+            <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+            <span className="font-mono font-semibold">{updateInfo.percent || 0}%</span>
+          </button>
+        )}
+
+        {updateInfo?.status === 'downloaded' && (
+          <button
+            onClick={onOpenUpdatePrompt}
+            className="mac-no-drag flex items-center space-x-1.5 space-x-reverse px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] text-emerald-400 hover:border-emerald-400 transition-all cursor-pointer shadow-xs ring-1 ring-emerald-500/30"
+            title={t('updater.readyToInstall', 'העדכון מוכן להתקנה! לחץ להפעלה מחדש')}
+          >
+            <RotateCcw className="w-3 h-3 text-emerald-400" />
+            <span className="font-bold">{t('updater.restartAndInstall', 'הפעל והתקן')}</span>
+          </button>
+        )}
       </div>
 
       {/* Middle side: Pane Toggle */}

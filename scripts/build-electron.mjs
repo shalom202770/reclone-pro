@@ -17,7 +17,7 @@ async function buildElectron() {
       platform: 'node',
       target: 'node20',
       outfile: path.join(root, 'dist-electron/main.js'),
-      external: ['electron', 'fsevents'],
+      external: ['electron', 'electron-updater', 'fsevents'],
       sourcemap: process.env.NODE_ENV === 'development',
       minify: process.env.NODE_ENV !== 'development',
       format: 'cjs',

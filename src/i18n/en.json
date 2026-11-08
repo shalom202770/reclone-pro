@@ -291,5 +291,28 @@
     "clear": "Clear Logs",
     "copy": "Copy All",
     "noLogs": "No logs recorded yet"
+  },
+  "updater": {
+    "newVersionFound": "New Version Available!",
+    "promptDownload": "A new version of Reclone Pro is available. Download now?",
+    "downloadNow": "Download Now",
+    "later": "Remind Me Later",
+    "downloading": "Downloading update in background...",
+    "downloadingDesc": "Downloading update files. You can continue working normally.",
+    "readyToInstall": "Update Ready to Install! 🚀",
+    "downloadedDesc": "The update was downloaded successfully. Restart to apply it now.",
+    "restartAndInstall": "Restart & Install",
+    "closeForNow": "Dismiss",
+    "errorTitle": "Update Error",
+    "unknownError": "An error occurred checking or downloading the update",
+    "viewNotes": "What's new in this version?",
+    "hideNotes": "Hide release details"
+  },
+  "upload": {
+    "upload": "Upload",
+    "uploadFiles": "Upload Files",
+    "uploadFolder": "Upload Folder",
+    "dropHere": "Drop files or folders here to upload directly",
+    "uploading": "Uploading..."
   }
 }

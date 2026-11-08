@@ -1,10 +1,26 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { RemoteInfo, RcloneItem, TransferTask, AppSettings, LogEntry, RemoteStorageInfo } from '../src/types';
 
 const api = {
   isMac: process.platform === 'darwin',
   isWindows: process.platform === 'win32',
   platform: process.platform,
+
+  // Native File Upload Pickers & Helpers
+  pickFilesForUpload: (): Promise<Array<{ path: string; name: string; size: number; isDir: boolean }>> => {
+    return ipcRenderer.invoke('dialog:pick-files-for-upload');
+  },
+  pickFolderForUpload: (): Promise<{ path: string; name: string; size: number; isDir: boolean } | null> => {
+    return ipcRenderer.invoke('dialog:pick-folder-for-upload');
+  },
+  getPathForFile: (file: File): string => {
+    try {
+      if (webUtils && typeof webUtils.getPathForFile === 'function') {
+        return webUtils.getPathForFile(file);
+      }
+    } catch {}
+    return (file as any).path || '';
+  },
 
   // Window Controls
   windowMinimize: () => {
@@ -65,8 +81,21 @@ const api = {
   installForWindows: (): Promise<{ success: boolean; message: string; path?: string }> => {
     return ipcRenderer.invoke('rclone:install-windows');
   },
-  checkForUpdates: (): Promise<{ currentVersion: string; latestVersion: string; isNewer: boolean; downloadUrl?: string; releaseNotes?: string; error?: string }> => {
+  checkForUpdates: (): Promise<{ success: boolean; currentVersion: string; error?: string }> => {
     return ipcRenderer.invoke('app:check-for-updates');
+  },
+  downloadUpdate: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('app:download-update');
+  },
+  installUpdate: (): Promise<void> => {
+    return ipcRenderer.invoke('app:install-update');
+  },
+  onUpdaterStatus: (callback: (data: any) => void) => {
+    const handler = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('updater:status', handler);
+    return () => {
+      ipcRenderer.removeListener('updater:status', handler);
+    };
   },
 
   // Transfers

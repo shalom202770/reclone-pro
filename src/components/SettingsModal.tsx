@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Sliders, 
@@ -18,7 +18,9 @@ import {
   RefreshCw,
   Sparkles,
   CheckCircle2,
-  ArrowDownCircle
+  ArrowDownCircle,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import type { AppSettings } from '../types';
 import { useTranslation, AVAILABLE_FONTS } from '../i18n/context';
@@ -39,6 +41,8 @@ interface SettingsModalProps {
   onInstallWindows?: () => Promise<{ success: boolean; message: string; path?: string }>;
 }
 
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error';
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   settings,
@@ -52,39 +56,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const [rclonePath, setRclonePath] = useState(settings.rclonePath || 'rclone');
   const [transfers, setTransfers] = useState(settings.transfers || 4);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateResult, setUpdateResult] = useState<{
-    checked: boolean;
-    isNewer: boolean;
-    latestVersion?: string;
-    downloadUrl?: string;
-    releaseNotes?: string;
-    error?: string;
-  } | null>(null);
+
+  // Auto-update state
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [updatePercent, setUpdatePercent] = useState(0);
+  const [updateError, setUpdateError] = useState('');
+
+  // Subscribe to updater events from main process
+  useEffect(() => {
+    if (!window.electronAPI?.onUpdaterStatus) return;
+    const unsub = window.electronAPI.onUpdaterStatus((data: any) => {
+      switch (data.status) {
+        case 'checking':
+          setUpdateStatus('checking');
+          break;
+        case 'available':
+          setUpdateStatus('downloading');
+          setUpdatePercent(0);
+          setUpdateVersion(data.version || '');
+          break;
+        case 'up-to-date':
+          setUpdateStatus('up-to-date');
+          setUpdateVersion(data.version || '');
+          break;
+        case 'downloading':
+          setUpdateStatus('downloading');
+          setUpdatePercent(data.percent || 0);
+          break;
+        case 'downloaded':
+          setUpdateStatus('downloaded');
+          setUpdateVersion(data.version || '');
+          break;
+        case 'error':
+          setUpdateStatus('error');
+          setUpdateError(data.error || 'Unknown error');
+          break;
+      }
+    });
+    return unsub;
+  }, []);
 
   const handleCheckForUpdates = async () => {
     if (!window.electronAPI?.checkForUpdates) return;
-    setCheckingUpdate(true);
-    setUpdateResult(null);
+    setUpdateStatus('checking');
+    setUpdateError('');
     try {
       const res = await window.electronAPI.checkForUpdates();
-      setUpdateResult({
-        checked: true,
-        isNewer: res.isNewer,
-        latestVersion: res.latestVersion,
-        downloadUrl: res.downloadUrl,
-        releaseNotes: res.releaseNotes,
-        error: res.error,
-      });
+      if (res.error) {
+        setUpdateStatus('error');
+        setUpdateError(res.error);
+      }
+      // Status will be updated by the event listener
     } catch (err: any) {
-      setUpdateResult({
-        checked: true,
-        isNewer: false,
-        error: err?.message || 'שגיאה בבדיקת עדכונים',
-      });
-    } finally {
-      setCheckingUpdate(false);
+      setUpdateStatus('error');
+      setUpdateError(err?.message || 'שגיאה בבדיקת עדכונים');
     }
+  };
+
+  const handleDownloadUpdate = async () => {
+    if (!window.electronAPI?.downloadUpdate) return;
+    setUpdateStatus('downloading');
+    setUpdatePercent(0);
+    try {
+      await window.electronAPI.downloadUpdate();
+    } catch (err: any) {
+      setUpdateStatus('error');
+      setUpdateError(err?.message || 'שגיאה בהורדת עדכון');
+    }
+  };
+
+  const handleInstallUpdate = () => {
+    if (!window.electronAPI?.installUpdate) return;
+    window.electronAPI.installUpdate();
   };
   const [checkers, setCheckers] = useState(settings.checkers || 8);
   const [retries, setRetries] = useState(settings.retries || 3);
@@ -740,7 +784,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </span>
             </div>
 
-            {/* Check for Updates Panel */}
+            {/* Auto-Update Panel */}
             <div className="p-3 rounded-xl bg-surface/80 border border-surface-border/70 flex flex-col gap-2.5 text-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 space-x-reverse">
@@ -749,57 +793,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div>
                     <h4 className="font-semibold text-foreground">{t('settings.updatesTitle', 'עדכוני גרסה (Software Updates)')}</h4>
-                    <p className="text-[10px] text-gray-400">{t('settings.updatesDesc', 'בדוק אם קיימת גרסה חדשה ב-GitHub')}</p>
+                    <p className="text-[10px] text-gray-400">{t('settings.updatesDesc', 'עדכון אוטומטי ישירות מ-GitHub')}</p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleCheckForUpdates}
-                  disabled={checkingUpdate}
-                  className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent text-white hover:bg-mac-accentHover transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
-                  <span>{checkingUpdate ? t('settings.checking', 'בודק...') : t('settings.checkNow', 'בדוק עדכונים')}</span>
-                </button>
+                {(updateStatus === 'idle' || updateStatus === 'up-to-date' || updateStatus === 'error') && (
+                  <button
+                    type="button"
+                    onClick={handleCheckForUpdates}
+                    className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent text-white hover:bg-mac-accentHover transition-colors shadow-xs cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{t('settings.checkNow', 'בדוק עדכונים')}</span>
+                  </button>
+                )}
+
+                {updateStatus === 'checking' && (
+                  <span className="inline-flex items-center space-x-1.5 space-x-reverse px-3 py-1.5 rounded-lg text-xs font-semibold bg-mac-accent/20 text-mac-accent">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{t('settings.checking', 'בודק...')}</span>
+                  </span>
+                )}
               </div>
 
-              {updateResult && updateResult.checked && (
-                <div className="mt-1">
-                  {updateResult.isNewer ? (
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-blue-500/15 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center space-x-1.5 space-x-reverse text-emerald-400 font-bold text-xs">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>{t('settings.newVersionAvailable', 'גרסה חדשה זמינה!')} v{updateResult.latestVersion}</span>
-                        </div>
-                        <p className="text-[11px] text-gray-300">
-                          {t('settings.currentVersionIs', 'הגרסה הנוכחית שלך:')} v1.0.3 Pro
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenExternal(updateResult.downloadUrl || 'https://github.com/shalom202770/Reclone-Pro/releases/latest')}
-                        className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-colors cursor-pointer"
-                      >
-                        <ArrowDownCircle className="w-3.5 h-3.5" />
-                        <span>{t('settings.downloadUpdate', 'הורד עדכון עכשיו')}</span>
-                      </button>
+              {/* Updates download automatically after discovery. */}
+              {updateStatus === 'available' && (
+                <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-blue-500/15 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center space-x-1.5 space-x-reverse text-emerald-400 font-bold text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{t('settings.newVersionAvailable', 'גרסה חדשה זמינה!')} v{updateVersion}</span>
                     </div>
-                  ) : updateResult.error ? (
-                    <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-400 flex items-center gap-1.5">
-                      <span>⚠️</span>
-                      <span>{t('settings.updateCheckError', 'שגיאה בבדיקת עדכונים:')} {updateResult.error}</span>
+                    <p className="text-[11px] text-gray-300">
+                      {t('settings.currentVersionIs', 'הגרסה הנוכחית שלך:')} v1.0.3 Pro
+                    </p>
+                  </div>
+                  <span className="text-xs text-blue-300">{t('settings.downloadingUpdate', 'מוריד עדכון...')}</span>
+                </div>
+              )}
+
+              {/* Downloading with progress bar */}
+              {updateStatus === 'downloading' && (
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center space-x-1.5 space-x-reverse text-blue-400 font-semibold">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{t('settings.downloadingUpdate', 'מוריד עדכון...')}</span>
                     </div>
-                  ) : (
-                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 space-x-reverse">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>{t('settings.upToDate', 'אתה משתמש בגרסה העדכנית ביותר! (v1.0.3 Pro)')}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400 font-mono">v1.0.3 Pro</span>
+                    <span className="font-mono text-blue-300">{updatePercent}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-300 ease-out"
+                      style={{ width: `${updatePercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Downloaded → Restart & Install */}
+              {updateStatus === 'downloaded' && (
+                <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center space-x-1.5 space-x-reverse text-emerald-400 font-bold text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{t('settings.updateReady', 'העדכון מוכן להתקנה!')} v{updateVersion}</span>
                     </div>
-                  )}
+                    <p className="text-[11px] text-gray-300">
+                      {t('settings.restartToApply', 'הפעל מחדש כדי להתקין את הגרסה החדשה')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleInstallUpdate}
+                    className="inline-flex items-center justify-center space-x-1.5 space-x-reverse px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white shadow-sm transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{t('settings.restartAndInstall', 'הפעל מחדש והתקן')}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Up to date */}
+              {updateStatus === 'up-to-date' && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 space-x-reverse">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{t('settings.upToDate', 'אתה משתמש בגרסה העדכנית ביותר! (v1.0.3 Pro)')}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-mono">v1.0.3 Pro</span>
+                </div>
+              )}
+
+              {/* Error */}
+              {updateStatus === 'error' && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-400 flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  <span>{t('settings.updateCheckError', 'שגיאה בבדיקת עדכונים:')} {updateError}</span>
                 </div>
               )}
             </div>

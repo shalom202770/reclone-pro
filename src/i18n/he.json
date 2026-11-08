@@ -291,5 +291,28 @@
     "clear": "נקה יומן",
     "copy": "העתק הכל",
     "noLogs": "אין רישומי יומן עדיין"
+  },
+  "updater": {
+    "newVersionFound": "גרסה חדשה זמינה!",
+    "promptDownload": "גרסה חדשה זמינה. האם להוריד כעת?",
+    "downloadNow": "הורד עכשיו",
+    "later": "מאוחר יותר",
+    "downloading": "מוריד עדכון ברקע...",
+    "downloadingDesc": "התוכנה מורידה את הקבצים, ניתן להמשיך לעבוד כרגיל.",
+    "readyToInstall": "העדכון מוכן להתקנה! 🚀",
+    "downloadedDesc": "העדכון הורד בהצלחה. הפעל מחדש כדי להחיל אותו מיידית.",
+    "restartAndInstall": "הפעל מחדש והתקן",
+    "closeForNow": "סגור לעת עתה",
+    "errorTitle": "שגיאת עדכון",
+    "unknownError": "שגיאה בבדיקת או הורדת העדכון",
+    "viewNotes": "מה חדש בגרסה זו?",
+    "hideNotes": "הסתר פרטי גרסה"
+  },
+  "upload": {
+    "upload": "העלאה",
+    "uploadFiles": "העלאת קבצים",
+    "uploadFolder": "העלאת תיקייה",
+    "dropHere": "שחרר קבצים או תיקיות כאן להעלאה ישירה",
+    "uploading": "מעלה קבצים..."
   }
 }

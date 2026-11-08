@@ -15,6 +15,7 @@ import { ChecksumModal } from './components/ChecksumModal';
 import { BatchRenameModal } from './components/BatchRenameModal';
 import { DuplicateScannerModal } from './components/DuplicateScannerModal';
 import { WelcomeModal } from './components/WelcomeModal';
+import { UpdateNotification, type UpdateInfo } from './components/UpdateNotification';
 import { useTranslation } from './i18n/context';
 import type { 
   PaneState, 
@@ -164,6 +165,49 @@ export const App: React.FC = () => {
     isOpen: boolean;
     paneId: 'left' | 'right';
   }>({ isOpen: false, paneId: 'left' });
+
+  // Global auto-updater state
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo>({ status: 'idle' });
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onUpdaterStatus) return;
+    const unsub = window.electronAPI.onUpdaterStatus((data: any) => {
+      setUpdateInfo((prev) => {
+        const next: UpdateInfo = {
+          ...prev,
+          status: data.status,
+          version: data.version || prev.version,
+          releaseNotes: data.releaseNotes || prev.releaseNotes,
+          releaseName: data.releaseName || prev.releaseName,
+          percent: data.percent != null ? data.percent : prev.percent,
+          bytesPerSecond: data.bytesPerSecond != null ? data.bytesPerSecond : prev.bytesPerSecond,
+          transferred: data.transferred != null ? data.transferred : prev.transferred,
+          total: data.total != null ? data.total : prev.total,
+          error: data.error,
+        };
+        if (data.status === 'available' || data.status === 'downloaded' || data.status === 'downloading') {
+          setShowUpdateNotification(true);
+        }
+        return next;
+      });
+    });
+    return unsub;
+  }, []);
+
+  const handleDownloadUpdate = async () => {
+    if (!window.electronAPI?.downloadUpdate) return;
+    try {
+      await window.electronAPI.downloadUpdate();
+    } catch (err: any) {
+      addLog('error', `שגיאה בהורדת עדכון: ${err?.message || err}`);
+    }
+  };
+
+  const handleInstallUpdate = () => {
+    if (!window.electronAPI?.installUpdate) return;
+    window.electronAPI.installUpdate();
+  };
 
   const addLog = useCallback((level: 'info' | 'warn' | 'error' | 'command', message: string) => {
     const entry: LogEntry = {
@@ -438,6 +482,8 @@ export const App: React.FC = () => {
 
     if (itemsToTransfer.length === 0) return;
 
+    const cleanDstDir = (dstPane.path || '').replace(/^\/+/, '').replace(/\/+$/, '');
+
     itemsToTransfer.forEach((item) => {
       const taskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const isDir = item.IsDir;
@@ -447,7 +493,7 @@ export const App: React.FC = () => {
         srcRemote: srcPane.remote,
         srcPath: item.Path,
         dstRemote: dstPane.remote,
-        dstPath: dstPane.path ? `${dstPane.path}/${item.Name}` : item.Name,
+        dstPath: cleanDstDir ? `${cleanDstDir}/${item.Name}` : item.Name,
         size: item.Size || 0,
         transferred: 0,
         percentage: 0,
@@ -480,6 +526,146 @@ export const App: React.FC = () => {
       'command',
       `נוספו ${itemsToTransfer.length} פריטים להעברה מ-[${srcPane.remote}] ל-[${dstPane.remote}]`
     );
+  };
+
+  // Upload Local Files to Pane
+  const handleUploadFilesToPane = async (paneId: 'left' | 'right') => {
+    if (!window.electronAPI?.pickFilesForUpload) return;
+    const targetPane = paneId === 'left' ? leftPane : rightPane;
+    const files = await window.electronAPI.pickFilesForUpload();
+    if (!files || files.length === 0) return;
+
+    const cleanDstDir = (targetPane.path || '').replace(/^\/+/, '').replace(/\/+$/, '');
+
+    files.forEach((f) => {
+      const taskId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const task: TransferTask = {
+        id: taskId,
+        name: f.name,
+        srcRemote: 'Local Mac',
+        srcPath: f.path,
+        dstRemote: targetPane.remote,
+        dstPath: cleanDstDir ? `${cleanDstDir}/${f.name}` : f.name,
+        size: f.size || 0,
+        transferred: 0,
+        percentage: 0,
+        speed: '0 B/s',
+        speedBytes: 0,
+        eta: 'מתחיל...',
+        status: 'queued',
+        operation: 'copyto',
+        startTime: Date.now(),
+        isDir: false,
+      };
+
+      setTasks((prev) => [task, ...prev]);
+      setTransferManagerExpanded(true);
+
+      window.electronAPI?.startTransfer(task, {
+        transfers: settings.transfers,
+        checkers: settings.checkers,
+        retries: settings.retries,
+        checksum: settings.checksum,
+        bwlimitDownload: settings.bwlimitDownload,
+        bwlimitUpload: settings.bwlimitUpload,
+        fastList: settings.fastList,
+      });
+    });
+
+    addLog('command', `הועלו ${files.length} קבצים ל-[${targetPane.remote}]`);
+  };
+
+  // Upload Local Folder to Pane
+  const handleUploadFolderToPane = async (paneId: 'left' | 'right') => {
+    if (!window.electronAPI?.pickFolderForUpload) return;
+    const targetPane = paneId === 'left' ? leftPane : rightPane;
+    const folder = await window.electronAPI.pickFolderForUpload();
+    if (!folder) return;
+
+    const cleanDstDir = (targetPane.path || '').replace(/^\/+/, '').replace(/\/+$/, '');
+    const taskId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const task: TransferTask = {
+      id: taskId,
+      name: folder.name,
+      srcRemote: 'Local Mac',
+      srcPath: folder.path,
+      dstRemote: targetPane.remote,
+      dstPath: cleanDstDir ? `${cleanDstDir}/${folder.name}` : folder.name,
+      size: 0,
+      transferred: 0,
+      percentage: 0,
+      speed: '0 B/s',
+      speedBytes: 0,
+      eta: 'מתחיל...',
+      status: 'queued',
+      operation: 'copy',
+      startTime: Date.now(),
+      isDir: true,
+    };
+
+    setTasks((prev) => [task, ...prev]);
+    setTransferManagerExpanded(true);
+
+    window.electronAPI?.startTransfer(task, {
+      transfers: settings.transfers,
+      checkers: settings.checkers,
+      retries: settings.retries,
+      checksum: settings.checksum,
+      bwlimitDownload: settings.bwlimitDownload,
+      bwlimitUpload: settings.bwlimitUpload,
+      fastList: settings.fastList,
+    });
+
+    addLog('command', `הועלתה תיקייה "${folder.name}" ל-[${targetPane.remote}]`);
+  };
+
+  // Drag and drop native files from macOS Finder / Windows Explorer into pane
+  const handleNativeFilesDropToPane = (
+    paneId: 'left' | 'right',
+    droppedFiles: Array<{ path: string; name: string; size: number; isDir: boolean }>
+  ) => {
+    const targetPane = paneId === 'left' ? leftPane : rightPane;
+    if (droppedFiles.length === 0) return;
+
+    const cleanDstDir = (targetPane.path || '').replace(/^\/+/, '').replace(/\/+$/, '');
+
+    droppedFiles.forEach((f) => {
+      const taskId = `drop-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const isDir = f.isDir;
+      const task: TransferTask = {
+        id: taskId,
+        name: f.name,
+        srcRemote: 'Local Mac',
+        srcPath: f.path,
+        dstRemote: targetPane.remote,
+        dstPath: cleanDstDir ? `${cleanDstDir}/${f.name}` : f.name,
+        size: f.size || 0,
+        transferred: 0,
+        percentage: 0,
+        speed: '0 B/s',
+        speedBytes: 0,
+        eta: 'מתחיל...',
+        status: 'queued',
+        operation: isDir ? 'copy' : 'copyto',
+        startTime: Date.now(),
+        isDir,
+      };
+
+      setTasks((prev) => [task, ...prev]);
+      setTransferManagerExpanded(true);
+
+      window.electronAPI?.startTransfer(task, {
+        transfers: settings.transfers,
+        checkers: settings.checkers,
+        retries: settings.retries,
+        checksum: settings.checksum,
+        bwlimitDownload: settings.bwlimitDownload,
+        bwlimitUpload: settings.bwlimitUpload,
+        fastList: settings.fastList,
+      });
+    });
+
+    addLog('command', `הועלו ${droppedFiles.length} פריטים בגרירה ל-[${targetPane.remote}]`);
   };
 
   // Delete handler
@@ -678,6 +864,8 @@ export const App: React.FC = () => {
         logsOpen={logsOpen}
         settings={settings}
         activeTransferCount={tasks.filter((t) => t.status === 'running').length}
+        updateInfo={updateInfo}
+        onOpenUpdatePrompt={() => setShowUpdateNotification(true)}
       />
 
       {/* 2. Main File Panes Layout */}
@@ -734,6 +922,8 @@ export const App: React.FC = () => {
             }}
             onDeleteSelected={() => setDeleteModal({ isOpen: true, paneId: 'left' })}
             onOpenDuplicateScanner={() => setDuplicateModal({ isOpen: true, paneId: 'left' })}
+            onUploadFiles={() => handleUploadFilesToPane('left')}
+            onUploadFolder={() => handleUploadFolderToPane('left')}
             gridIconSize={leftPane.gridIconSize}
             onGridIconSizeChange={(size) => setLeftPane((p) => ({ ...p, gridIconSize: size }))}
           />
@@ -773,6 +963,7 @@ export const App: React.FC = () => {
               setDeleteModal({ isOpen: true, paneId: 'left' });
             }}
             onDropTransfer={(droppedItems) => executeTransfer('right', droppedItems)}
+            onNativeFilesDrop={(files) => handleNativeFilesDropToPane('left', files)}
             onRefresh={() => loadPaneItems('left')}
             gridIconSize={leftPane.gridIconSize}
             onGetInfo={(item) => handleGetInfo('left', item)}
@@ -835,6 +1026,8 @@ export const App: React.FC = () => {
               }}
               onDeleteSelected={() => setDeleteModal({ isOpen: true, paneId: 'right' })}
               onOpenDuplicateScanner={() => setDuplicateModal({ isOpen: true, paneId: 'right' })}
+              onUploadFiles={() => handleUploadFilesToPane('right')}
+              onUploadFolder={() => handleUploadFolderToPane('right')}
               gridIconSize={rightPane.gridIconSize}
               onGridIconSizeChange={(size) => setRightPane((p) => ({ ...p, gridIconSize: size }))}
             />
@@ -874,6 +1067,7 @@ export const App: React.FC = () => {
                 setDeleteModal({ isOpen: true, paneId: 'right' });
               }}
               onDropTransfer={(droppedItems) => executeTransfer('left', droppedItems)}
+              onNativeFilesDrop={(files) => handleNativeFilesDropToPane('right', files)}
               onRefresh={() => loadPaneItems('right')}
               gridIconSize={rightPane.gridIconSize}
               onGetInfo={(item) => handleGetInfo('right', item)}
@@ -1034,6 +1228,16 @@ export const App: React.FC = () => {
         onClose={() => setDuplicateModal((prev) => ({ ...prev, isOpen: false }))}
         onRefresh={() => loadPaneItems(duplicateModal.paneId)}
       />
+
+      {/* 15. In-App Seamless Auto-Update Notification Banner */}
+      {showUpdateNotification && (
+        <UpdateNotification
+          updateInfo={updateInfo}
+          onDownload={handleDownloadUpdate}
+          onInstall={handleInstallUpdate}
+          onDismiss={() => setShowUpdateNotification(false)}
+        />
+      )}
     </div>
   );
 };
