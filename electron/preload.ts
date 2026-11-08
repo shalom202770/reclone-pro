@@ -90,9 +90,7 @@ const api = {
   downloadUpdate: (): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('app:download-update');
   },
-  installUpdate: (): Promise<void> => {
-    return ipcRenderer.invoke('app:install-update');
-  },
+  installUpdate: (): void => ipcRenderer.send('app:install-update'),
   onUpdaterStatus: (callback: (data: any) => void) => {
     const handler = (_event: any, data: any) => callback(data);
     ipcRenderer.on('updater:status', handler);

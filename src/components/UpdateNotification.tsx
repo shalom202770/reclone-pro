@@ -27,6 +27,15 @@ export interface UpdateInfo {
   error?: string;
 }
 
+const cleanReleaseNotes = (notes: string) => notes
+  .replace(/<\/?(?:p|div|br|li|h[1-6])\b[^>]*>/gi, '\n')
+  .replace(/<[^>]*>/g, '')
+  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+  .replace(/\*\*|__|~~|`|\*|_/g, '')
+  .replace(/\n{3,}/g, '\n\n')
+  .trim();
+
 interface UpdateNotificationProps {
   updateInfo: UpdateInfo;
   onDownload: () => void;
@@ -153,7 +162,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
             </button>
             {showNotes && (
               <div className="mt-1.5 p-2 rounded-lg bg-black/40 border border-white/10 text-[10px] text-gray-300 max-h-24 overflow-y-auto whitespace-pre-wrap font-sans">
-                {updateInfo.releaseNotes}
+                {cleanReleaseNotes(updateInfo.releaseNotes || '')}
               </div>
             )}
           </div>

@@ -222,7 +222,7 @@ ipcMain.handle('rclone:get-share-link', async (_event, { remote, filePath }: { r
   const cloudPath = `${remote}:${rclone.cleanCloudPath(filePath)}`;
   return new Promise((resolve) => {
     execFile(rclone.getRclonePath(), ['link', cloudPath], { timeout: 30000 }, (err, stdout, stderr) => {
-      const url = String(stdout || '').trim().split(/\r?\n/).pop()?.trim();
+      const url = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).find((line) => /^https?:\/\/\S+$/i.test(line));
       if (err || !url || !/^https?:\/\//i.test(url)) {
         resolve({ success: false, error: String(stderr || err?.message || 'Could not create a public link.').trim() });
       } else {
@@ -1087,11 +1087,8 @@ ipcMain.handle('app:download-update', async () => {
 });
 
 // IPC: Quit and install the downloaded update immediately
-ipcMain.handle('app:install-update', () => {
-  setImmediate(() => {
-    autoUpdater.quitAndInstall(false, true);
-  });
-  return true;
+ipcMain.on('app:install-update', () => {
+  setImmediate(() => autoUpdater.quitAndInstall(false, true));
 });
 
 // Native Upload File/Folder Dialogs
