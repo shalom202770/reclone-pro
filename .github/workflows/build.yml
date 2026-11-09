@@ -27,8 +27,11 @@ jobs:
             platform: win
             args: --win --x64
           - os: ubuntu-latest
-            platform: linux
-            args: --linux
+            platform: linux-x64
+            args: --linux --x64
+          - os: ubuntu-latest
+            platform: linux-arm64
+            args: --linux --arm64
 
     runs-on: ${{ matrix.os }}
 
