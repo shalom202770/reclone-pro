@@ -38,6 +38,8 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
+      "identity": null,
+      "forceCodeSigning": false,
       "artifactName": "Reclone-Pro-${version}-${arch}.${ext}",
       "target": [
         {
